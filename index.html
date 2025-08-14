@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide-react/0.263.1/lucide-react.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <style>
@@ -17,10 +16,758 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             background-color: #f3f4f6;
         }
+        .icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" src="app.js"></script>
+    
+    <script type="text/babel">
+        const { useState } = React;
+
+        const FieldMonitoringApp = () => {
+          const [formData, setFormData] = useState({
+            monitor: '',
+            projectName: '',
+            date: '',
+            projectNumber: '',
+            totalHrs: '',
+            totalMi: '',
+            timeIn: '',
+            timeOut: '',
+            projectAreas: '',
+            fossils: '',
+            prehistoricArtifacts: '',
+            historicArtifacts: '',
+            architecturalFeatures: '',
+            stratigraphy: '',
+            grainSize: '',
+            color: '',
+            texture: '',
+            sorting: '',
+            seds: [],
+            mineralization: [],
+            siteConditions: '',
+            excavationConditions: '',
+            otherObservations: '',
+            fieldNumber: '',
+            fieldId: '',
+            datum: 'NAD 83 CONUS',
+            condition: '',
+            contextDescription: '',
+            approxAge: '',
+            soils: '',
+            location: '',
+            fateOfLocality: '',
+            utmE: '',
+            utmN: '',
+            latitude: '',
+            longitude: '',
+            elevation: '',
+            numberOfArtifacts: '',
+            photoLog: [{ photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '' }]
+          });
+
+          const [savedReports, setSavedReports] = useState(() => {
+            try {
+              const saved = localStorage.getItem('fieldMonitoringReports');
+              return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+              return [];
+            }
+          });
+
+          const handleInputChange = (field, value) => {
+            setFormData(prev => ({ ...prev, [field]: value }));
+          };
+
+          const handleCheckboxChange = (field, value) => {
+            setFormData(prev => ({
+              ...prev,
+              [field]: prev[field].includes(value) 
+                ? prev[field].filter(item => item !== value)
+                : [...prev[field], value]
+            }));
+          };
+
+          const handlePhotoLogChange = (index, field, value) => {
+            const newPhotoLog = [...formData.photoLog];
+            newPhotoLog[index][field] = value;
+            setFormData(prev => ({ ...prev, photoLog: newPhotoLog }));
+          };
+
+          const addPhotoEntry = () => {
+            setFormData(prev => ({
+              ...prev,
+              photoLog: [...prev.photoLog, { photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '' }]
+            }));
+          };
+
+          const removePhotoEntry = (index) => {
+            setFormData(prev => ({
+              ...prev,
+              photoLog: prev.photoLog.filter((_, i) => i !== index)
+            }));
+          };
+
+          const saveReport = () => {
+            const reportId = `REPORT_${Date.now()}`;
+            const timestamp = new Date().toLocaleString();
+            const newReport = {
+              id: reportId,
+              timestamp,
+              data: { ...formData }
+            };
+            const updatedReports = [...savedReports, newReport];
+            setSavedReports(updatedReports);
+            try {
+              localStorage.setItem('fieldMonitoringReports', JSON.stringify(updatedReports));
+              alert(`Report saved as ${reportId}`);
+            } catch (e) {
+              alert('Error saving report. Storage may be full.');
+            }
+          };
+
+          const exportToJSON = () => {
+            const dataStr = JSON.stringify(savedReports, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportFileDefaultName = `field_monitoring_reports_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+          };
+
+          const clearForm = () => {
+            if (confirm('Clear all form data?')) {
+              setFormData({
+                monitor: '',
+                projectName: '',
+                date: '',
+                projectNumber: '',
+                totalHrs: '',
+                totalMi: '',
+                timeIn: '',
+                timeOut: '',
+                projectAreas: '',
+                fossils: '',
+                prehistoricArtifacts: '',
+                historicArtifacts: '',
+                architecturalFeatures: '',
+                stratigraphy: '',
+                grainSize: '',
+                color: '',
+                texture: '',
+                sorting: '',
+                seds: [],
+                mineralization: [],
+                siteConditions: '',
+                excavationConditions: '',
+                otherObservations: '',
+                fieldNumber: '',
+                fieldId: '',
+                datum: 'NAD 83 CONUS',
+                condition: '',
+                contextDescription: '',
+                approxAge: '',
+                soils: '',
+                location: '',
+                fateOfLocality: '',
+                utmE: '',
+                utmN: '',
+                latitude: '',
+                longitude: '',
+                elevation: '',
+                numberOfArtifacts: '',
+                photoLog: [{ photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '' }]
+              });
+            }
+          };
+
+          const sedimentOptions = ['mud/s', 'silt/s', 'sand/s', 'lime/s', 'shale', 'conglomerate', 'breccia', 'concretions'];
+          const mineralizationOptions = ['caliche', 'siliceous', 'paleosol', 'alluvium', 'lag deposits'];
+          const conditionOptions = ['poor', 'fair', 'good', 'excellent', 'damaged', 'partial', 'whole'];
+          const fateOptions = ['accessible', 'buried', 'graded away'];
+
+          return (
+            <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg">
+              <div className="flex justify-between items-center mb-6 pb-4 border-b">
+                <h1 className="text-3xl font-bold text-gray-800">Field Monitoring Data Entry</h1>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={saveReport}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    💾 Save Report
+                  </button>
+                  <button 
+                    onClick={exportToJSON}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    📥 Export Data
+                  </button>
+                  <button 
+                    onClick={clearForm}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                  >
+                    🗑️ Clear Form
+                  </button>
+                </div>
+              </div>
+
+              {savedReports.length > 0 && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                  <h3 className="font-semibold text-blue-800 mb-2">Saved Reports: {savedReports.length}</h3>
+                  <p className="text-sm text-blue-600">Click "Export Data" to download all reports as JSON for further processing.</p>
+                </div>
+              )}
+
+              <form className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                  <h2 className="col-span-full text-xl font-semibold text-gray-700 mb-3">Basic Information</h2>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monitor</label>
+                    <input
+                      type="text"
+                      value={formData.monitor}
+                      onChange={(e) => handleInputChange('monitor', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                    <input
+                      type="text"
+                      value={formData.projectName}
+                      onChange={(e) => handleInputChange('projectName', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
+                    <input
+                      type="text"
+                      value={formData.projectNumber}
+                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Hours</label>
+                    <input
+                      type="text"
+                      value={formData.totalHrs}
+                      onChange={(e) => handleInputChange('totalHrs', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Miles</label>
+                    <input
+                      type="text"
+                      value={formData.totalMi}
+                      onChange={(e) => handleInputChange('totalMi', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Time In</label>
+                    <input
+                      type="time"
+                      value={formData.timeIn}
+                      onChange={(e) => handleInputChange('timeIn', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Time Out</label>
+                    <input
+                      type="time"
+                      value={formData.timeOut}
+                      onChange={(e) => handleInputChange('timeOut', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Field Observations */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Field Observations</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Project Areas Monitored</label>
+                      <textarea
+                        value={formData.projectAreas}
+                        onChange={(e) => handleInputChange('projectAreas', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="2"
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fossils</label>
+                        <textarea
+                          value={formData.fossils}
+                          onChange={(e) => handleInputChange('fossils', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows="3"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Prehistoric Artifacts/Ecofacts</label>
+                        <textarea
+                          value={formData.prehistoricArtifacts}
+                          onChange={(e) => handleInputChange('prehistoricArtifacts', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows="3"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Historic Artifacts/Ecofacts</label>
+                        <textarea
+                          value={formData.historicArtifacts}
+                          onChange={(e) => handleInputChange('historicArtifacts', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows="3"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Architectural Features</label>
+                        <textarea
+                          value={formData.architecturalFeatures}
+                          onChange={(e) => handleInputChange('architecturalFeatures', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Stratigraphy</label>
+                      <textarea
+                        value={formData.stratigraphy}
+                        onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
+                        placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lithology */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Lithology</h2>
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Grain Size</label>
+                      <select
+                        value={formData.grainSize}
+                        onChange={(e) => handleInputChange('grainSize', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select...</option>
+                        <option value="F">F (Fine)</option>
+                        <option value="M">M (Medium)</option>
+                        <option value="C">C (Coarse)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                      <input
+                        type="text"
+                        value={formData.color}
+                        onChange={(e) => handleInputChange('color', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Texture</label>
+                      <input
+                        type="text"
+                        value={formData.texture}
+                        onChange={(e) => handleInputChange('texture', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sorting</label>
+                      <input
+                        type="text"
+                        value={formData.sorting}
+                        onChange={(e) => handleInputChange('sorting', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Sediments</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {sedimentOptions.map(option => (
+                        <label key={option} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.seds.includes(option)}
+                            onChange={() => handleCheckboxChange('seds', option)}
+                            className="rounded"
+                          />
+                          <span className="text-sm">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mineralization</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {mineralizationOptions.map(option => (
+                        <label key={option} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.mineralization.includes(option)}
+                            onChange={() => handleCheckboxChange('mineralization', option)}
+                            className="rounded"
+                          />
+                          <span className="text-sm">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Site Conditions */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Site & Excavation Conditions</h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Site Conditions & Personnel</label>
+                      <textarea
+                        value={formData.siteConditions}
+                        onChange={(e) => handleInputChange('siteConditions', e.target.value)}
+                        placeholder="non-compliance / hazards / weather / safety concerns / visitors"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Excavation Conditions</label>
+                      <textarea
+                        value={formData.excavationConditions}
+                        onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
+                        placeholder="status / equipment / cuts / access"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Other Observations & Comments</label>
+                    <textarea
+                      value={formData.otherObservations}
+                      onChange={(e) => handleInputChange('otherObservations', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows="4"
+                    />
+                  </div>
+                </div>
+
+                {/* Findings Report */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Findings Report</h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Field Number</label>
+                      <input
+                        type="text"
+                        value={formData.fieldNumber}
+                        onChange={(e) => handleInputChange('fieldNumber', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Field ID</label>
+                      <input
+                        type="text"
+                        value={formData.fieldId}
+                        onChange={(e) => handleInputChange('fieldId', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                      <input
+                        type="text"
+                        value={formData.datum}
+                        onChange={(e) => handleInputChange('datum', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                      <select
+                        value={formData.condition}
+                        onChange={(e) => handleInputChange('condition', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select...</option>
+                        {conditionOptions.map(option => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Artifact/Ecofact Context Description</label>
+                      <textarea
+                        value={formData.contextDescription}
+                        onChange={(e) => handleInputChange('contextDescription', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="3"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Approximate Age</label>
+                      <input
+                        type="text"
+                        value={formData.approxAge}
+                        onChange={(e) => handleInputChange('approxAge', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Soils</label>
+                      <input
+                        type="text"
+                        value={formData.soils}
+                        onChange={(e) => handleInputChange('soils', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        placeholder="pads / cuts / landmarks"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fate of Locality</label>
+                      <select
+                        value={formData.fateOfLocality}
+                        onChange={(e) => handleInputChange('fateOfLocality', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select...</option>
+                        {fateOptions.map(option => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coordinates */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Coordinates</h2>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">UTM Easting</label>
+                      <input
+                        type="text"
+                        value={formData.utmE}
+                        onChange={(e) => handleInputChange('utmE', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">UTM Northing</label>
+                      <input
+                        type="text"
+                        value={formData.utmN}
+                        onChange={(e) => handleInputChange('utmN', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Elevation</label>
+                      <input
+                        type="text"
+                        value={formData.elevation}
+                        onChange={(e) => handleInputChange('elevation', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Latitude N</label>
+                      <input
+                        type="text"
+                        value={formData.latitude}
+                        onChange={(e) => handleInputChange('latitude', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Longitude W</label>
+                      <input
+                        type="text"
+                        value={formData.longitude}
+                        onChange={(e) => handleInputChange('longitude', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Number of Artifacts/Ecofacts</label>
+                      <input
+                        type="text"
+                        value={formData.numberOfArtifacts}
+                        onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
+                        placeholder="specimens / paperbags / boxes / samples"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Photo Log */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-xl font-semibold text-gray-700">Photo Log</h2>
+                    <button
+                      type="button"
+                      onClick={addPhotoEntry}
+                      className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      ➕ Add Photo
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {formData.photoLog.map((photo, index) => (
+                      <div key={index} className="border border-gray-300 rounded-md p-3 bg-white">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-medium text-gray-700">Photo Entry {index + 1}</span>
+                          {formData.photoLog.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removePhotoEntry(index)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              🗑️ Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid md:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Photo #</label>
+                            <input
+                              type="text"
+                              value={photo.photoNum}
+                              onChange={(e) => handlePhotoLogChange(index, 'photoNum', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input
+                              type="date"
+                              value={photo.date}
+                              onChange={(e) => handlePhotoLogChange(index, 'date', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                            <input
+                              type="time"
+                              value={photo.time}
+                              onChange={(e) => handlePhotoLogChange(index, 'time', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">GPS Coordinates</label>
+                            <input
+                              type="text"
+                              value={photo.gps}
+                              onChange={(e) => handlePhotoLogChange(index, 'gps', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Cardinal Direction</label>
+                            <select
+                              value={photo.direction}
+                              onChange={(e) => handlePhotoLogChange(index, 'direction', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select...</option>
+                              <option value="N">North</option>
+                              <option value="NE">Northeast</option>
+                              <option value="E">East</option>
+                              <option value="SE">Southeast</option>
+                              <option value="S">South</option>
+                              <option value="SW">Southwest</option>
+                              <option value="W">West</option>
+                              <option value="NW">Northwest</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
+                            <input
+                              type="text"
+                              value={photo.equipment}
+                              onChange={(e) => handlePhotoLogChange(index, 'equipment', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Description of Subject</label>
+                          <textarea
+                            value={photo.description}
+                            onChange={(e) => handlePhotoLogChange(index, 'description', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows="2"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </form>
+              
+              {/* Footer with summary */}
+              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="font-semibold text-blue-800 mb-2">How to Use This System</h3>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <p><strong>Save Report:</strong> Click to save the current form data. Each report gets a unique ID and timestamp.</p>
+                  <p><strong>Export Data:</strong> Downloads all saved reports as a JSON file that you can import into spreadsheets or databases for analysis.</p>
+                  <p><strong>Clear Form:</strong> Resets all fields to start a new entry.</p>
+                  <p>Data is stored locally in your browser session. Export regularly to preserve your work!</p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
+    </script>
 </body>
 </html>
