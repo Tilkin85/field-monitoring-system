@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <style>
         body {
@@ -16,11 +18,52 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             background-color: #f3f4f6;
         }
-        .icon {
-            width: 16px;
-            height: 16px;
-            display: inline-block;
-            margin-right: 8px;
+        .print-document {
+            background: white;
+            padding: 40px;
+            max-width: 8.5in;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+        }
+        .print-document h1 {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .print-document h2 {
+            background-color: #f0f0f0;
+            padding: 8px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-left: 4px solid #007acc;
+        }
+        .print-document .field-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .print-document .field-label {
+            font-weight: bold;
+            min-width: 150px;
+            margin-right: 10px;
+        }
+        .print-document .field-value {
+            flex: 1;
+            border-bottom: 1px dotted #ccc;
+            min-height: 20px;
+            padding-bottom: 2px;
+        }
+        .print-document .photo-entry {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        @media print {
+            body { margin: 0; }
+            .print-document { box-shadow: none; margin: 0; }
         }
     </style>
 </head>
@@ -81,6 +124,8 @@
               return [];
             }
           });
+
+          const [showDocument, setShowDocument] = useState(false);
 
           const handleInputChange = (field, value) => {
             setFormData(prev => ({ ...prev, [field]: value }));
@@ -144,6 +189,314 @@
             linkElement.click();
           };
 
+          const generateWordDocument = () => {
+            const timestamp = new Date().toLocaleString();
+            const reportId = `REPORT_${Date.now()}`;
+            
+            // Create HTML content for the document
+            const documentContent = `
+              <div class="print-document">
+                <h1>FIELD MONITORING REPORT</h1>
+                
+                <div class="field-group">
+                  <span class="field-label">Report ID:</span>
+                  <span class="field-value">${reportId}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Generated:</span>
+                  <span class="field-value">${timestamp}</span>
+                </div>
+
+                <h2>Basic Information</h2>
+                <div class="field-group">
+                  <span class="field-label">Monitor:</span>
+                  <span class="field-value">${formData.monitor || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Project Name:</span>
+                  <span class="field-value">${formData.projectName || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Date:</span>
+                  <span class="field-value">${formData.date || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Project Number:</span>
+                  <span class="field-value">${formData.projectNumber || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Total Hours:</span>
+                  <span class="field-value">${formData.totalHrs || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Total Miles:</span>
+                  <span class="field-value">${formData.totalMi || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Time In:</span>
+                  <span class="field-value">${formData.timeIn || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Time Out:</span>
+                  <span class="field-value">${formData.timeOut || 'N/A'}</span>
+                </div>
+
+                <h2>Field Observations</h2>
+                <div class="field-group">
+                  <span class="field-label">Project Areas Monitored:</span>
+                  <span class="field-value">${formData.projectAreas || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Fossils:</span>
+                  <span class="field-value">${formData.fossils || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Prehistoric Artifacts/Ecofacts:</span>
+                  <span class="field-value">${formData.prehistoricArtifacts || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Historic Artifacts/Ecofacts:</span>
+                  <span class="field-value">${formData.historicArtifacts || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Architectural Features:</span>
+                  <span class="field-value">${formData.architecturalFeatures || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Stratigraphy:</span>
+                  <span class="field-value">${formData.stratigraphy || 'N/A'}</span>
+                </div>
+
+                <h2>Lithology</h2>
+                <div class="field-group">
+                  <span class="field-label">Grain Size:</span>
+                  <span class="field-value">${formData.grainSize || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Color:</span>
+                  <span class="field-value">${formData.color || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Texture:</span>
+                  <span class="field-value">${formData.texture || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Sorting:</span>
+                  <span class="field-value">${formData.sorting || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Sediments:</span>
+                  <span class="field-value">${formData.seds.length > 0 ? formData.seds.join(', ') : 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Mineralization:</span>
+                  <span class="field-value">${formData.mineralization.length > 0 ? formData.mineralization.join(', ') : 'N/A'}</span>
+                </div>
+
+                <h2>Site & Excavation Conditions</h2>
+                <div class="field-group">
+                  <span class="field-label">Site Conditions & Personnel:</span>
+                  <span class="field-value">${formData.siteConditions || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Excavation Conditions:</span>
+                  <span class="field-value">${formData.excavationConditions || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Other Observations:</span>
+                  <span class="field-value">${formData.otherObservations || 'N/A'}</span>
+                </div>
+
+                <h2>Findings Report</h2>
+                <div class="field-group">
+                  <span class="field-label">Field Number:</span>
+                  <span class="field-value">${formData.fieldNumber || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Field ID:</span>
+                  <span class="field-value">${formData.fieldId || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Datum:</span>
+                  <span class="field-value">${formData.datum || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Condition:</span>
+                  <span class="field-value">${formData.condition || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Context Description:</span>
+                  <span class="field-value">${formData.contextDescription || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Approximate Age:</span>
+                  <span class="field-value">${formData.approxAge || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Soils:</span>
+                  <span class="field-value">${formData.soils || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Location:</span>
+                  <span class="field-value">${formData.location || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Fate of Locality:</span>
+                  <span class="field-value">${formData.fateOfLocality || 'N/A'}</span>
+                </div>
+
+                <h2>Coordinates</h2>
+                <div class="field-group">
+                  <span class="field-label">UTM Easting:</span>
+                  <span class="field-value">${formData.utmE || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">UTM Northing:</span>
+                  <span class="field-value">${formData.utmN || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Latitude N:</span>
+                  <span class="field-value">${formData.latitude || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Longitude W:</span>
+                  <span class="field-value">${formData.longitude || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Elevation:</span>
+                  <span class="field-value">${formData.elevation || 'N/A'}</span>
+                </div>
+                <div class="field-group">
+                  <span class="field-label">Number of Artifacts/Ecofacts:</span>
+                  <span class="field-value">${formData.numberOfArtifacts || 'N/A'}</span>
+                </div>
+
+                <h2>Photo Log</h2>
+                ${formData.photoLog.map((photo, index) => `
+                  <div class="photo-entry">
+                    <strong>Photo Entry ${index + 1}</strong><br>
+                    Photo #: ${photo.photoNum || 'N/A'}<br>
+                    Date: ${photo.date || 'N/A'}<br>
+                    Time: ${photo.time || 'N/A'}<br>
+                    GPS: ${photo.gps || 'N/A'}<br>
+                    Direction: ${photo.direction || 'N/A'}<br>
+                    Equipment: ${photo.equipment || 'N/A'}<br>
+                    Description: ${photo.description || 'N/A'}
+                  </div>
+                `).join('')}
+
+                <hr style="margin-top: 40px;">
+                <p style="text-align: center; font-size: 12px; color: #666;">
+                  Generated by Field Monitoring System on ${timestamp}
+                </p>
+              </div>
+            `;
+
+            // Create a new window with the document content
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>Field Monitoring Report - ${reportId}</title>
+                <style>
+                  ${document.querySelector('style').innerHTML}
+                </style>
+              </head>
+              <body>
+                ${documentContent}
+                <script>
+                  window.onload = function() {
+                    window.print();
+                  }
+                </script>
+              </body>
+              </html>
+            `);
+            printWindow.document.close();
+          };
+
+          const generatePDF = async () => {
+            const timestamp = new Date().toLocaleString();
+            const reportId = `REPORT_${Date.now()}`;
+            
+            // Create a temporary div with the document content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = `
+              <div class="print-document" style="width: 8.5in; background: white; padding: 40px; font-family: 'Times New Roman', serif; line-height: 1.6;">
+                <h1 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px;">FIELD MONITORING REPORT</h1>
+                
+                <p><strong>Report ID:</strong> ${reportId}</p>
+                <p><strong>Generated:</strong> ${timestamp}</p>
+                
+                <h2 style="background-color: #f0f0f0; padding: 8px; margin-top: 20px; margin-bottom: 10px; border-left: 4px solid #007acc;">Basic Information</h2>
+                <p><strong>Monitor:</strong> ${formData.monitor || 'N/A'}</p>
+                <p><strong>Project Name:</strong> ${formData.projectName || 'N/A'}</p>
+                <p><strong>Date:</strong> ${formData.date || 'N/A'}</p>
+                <p><strong>Project Number:</strong> ${formData.projectNumber || 'N/A'}</p>
+                <p><strong>Total Hours:</strong> ${formData.totalHrs || 'N/A'}</p>
+                <p><strong>Total Miles:</strong> ${formData.totalMi || 'N/A'}</p>
+                <p><strong>Time In:</strong> ${formData.timeIn || 'N/A'}</p>
+                <p><strong>Time Out:</strong> ${formData.timeOut || 'N/A'}</p>
+                
+                <h2 style="background-color: #f0f0f0; padding: 8px; margin-top: 20px; margin-bottom: 10px; border-left: 4px solid #007acc;">Field Observations</h2>
+                <p><strong>Project Areas Monitored:</strong> ${formData.projectAreas || 'N/A'}</p>
+                <p><strong>Fossils:</strong> ${formData.fossils || 'N/A'}</p>
+                <p><strong>Prehistoric Artifacts/Ecofacts:</strong> ${formData.prehistoricArtifacts || 'N/A'}</p>
+                <p><strong>Historic Artifacts/Ecofacts:</strong> ${formData.historicArtifacts || 'N/A'}</p>
+                <p><strong>Architectural Features:</strong> ${formData.architecturalFeatures || 'N/A'}</p>
+                <p><strong>Stratigraphy:</strong> ${formData.stratigraphy || 'N/A'}</p>
+                
+                <h2 style="background-color: #f0f0f0; padding: 8px; margin-top: 20px; margin-bottom: 10px; border-left: 4px solid #007acc;">Coordinates</h2>
+                <p><strong>UTM Easting:</strong> ${formData.utmE || 'N/A'}</p>
+                <p><strong>UTM Northing:</strong> ${formData.utmN || 'N/A'}</p>
+                <p><strong>Latitude:</strong> ${formData.latitude || 'N/A'}</p>
+                <p><strong>Longitude:</strong> ${formData.longitude || 'N/A'}</p>
+                <p><strong>Elevation:</strong> ${formData.elevation || 'N/A'}</p>
+              </div>
+            `;
+            
+            // Add to body temporarily
+            document.body.appendChild(tempDiv);
+            
+            try {
+              const canvas = await html2canvas(tempDiv, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                width: 816, // 8.5 inches at 96 DPI
+                height: 1056 // 11 inches at 96 DPI
+              });
+              
+              const imgData = canvas.toDataURL('image/png');
+              const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+              
+              const imgWidth = 190; // A4 width in mm minus margins
+              const pageHeight = 297; // A4 height in mm
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
+              let heightLeft = imgHeight;
+              
+              let position = 10; // Top margin
+              
+              pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+              heightLeft -= pageHeight;
+              
+              while (heightLeft >= 0) {
+                position = heightLeft - imgHeight + 10;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+              }
+              
+              pdf.save(`field_monitoring_report_${new Date().toISOString().split('T')[0]}.pdf`);
+            } catch (error) {
+              alert('Error generating PDF. Please try the Word document option instead.');
+              console.error('PDF generation error:', error);
+            } finally {
+              // Remove temporary div
+              document.body.removeChild(tempDiv);
+            }
+          };
+
           const clearForm = () => {
             if (confirm('Clear all form data?')) {
               setFormData({
@@ -199,7 +552,7 @@
             <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg">
               <div className="flex justify-between items-center mb-6 pb-4 border-b">
                 <h1 className="text-3xl font-bold text-gray-800">Field Monitoring Data Entry</h1>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button 
                     onClick={saveReport}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -210,7 +563,19 @@
                     onClick={exportToJSON}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                   >
-                    📥 Export Data
+                    📥 Export JSON
+                  </button>
+                  <button 
+                    onClick={generateWordDocument}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                  >
+                    📄 Word Doc
+                  </button>
+                  <button 
+                    onClick={generatePDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  >
+                    📋 PDF
                   </button>
                   <button 
                     onClick={clearForm}
@@ -224,7 +589,7 @@
               {savedReports.length > 0 && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                   <h3 className="font-semibold text-blue-800 mb-2">Saved Reports: {savedReports.length}</h3>
-                  <p className="text-sm text-blue-600">Click "Export Data" to download all reports as JSON for further processing.</p>
+                  <p className="text-sm text-blue-600">Export options: JSON (data), Word Document (printable), or PDF (formatted report)</p>
                 </div>
               )}
 
@@ -232,42 +597,6 @@
                 {/* Basic Information */}
                 <div className="grid md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                   <h2 className="col-span-full text-xl font-semibold text-gray-700 mb-3">Basic Information</h2>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Monitor</label>
-                    <input
-                      type="text"
-                      value={formData.monitor}
-                      onChange={(e) => handleInputChange('monitor', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                    <input
-                      type="text"
-                      value={formData.projectName}
-                      onChange={(e) => handleInputChange('projectName', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => handleInputChange('date', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
-                    <input
-                      type="text"
-                      value={formData.projectNumber}
-                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Total Hours</label>
                     <input
@@ -755,12 +1084,13 @@
               
               {/* Footer with summary */}
               <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-800 mb-2">How to Use This System</h3>
+                <h3 className="font-semibold text-blue-800 mb-2">Export Options</h3>
                 <div className="text-sm text-blue-700 space-y-1">
-                  <p><strong>Save Report:</strong> Click to save the current form data. Each report gets a unique ID and timestamp.</p>
-                  <p><strong>Export Data:</strong> Downloads all saved reports as a JSON file that you can import into spreadsheets or databases for analysis.</p>
-                  <p><strong>Clear Form:</strong> Resets all fields to start a new entry.</p>
-                  <p>Data is stored locally in your browser session. Export regularly to preserve your work!</p>
+                  <p><strong>💾 Save Report:</strong> Saves form data locally with unique ID and timestamp</p>
+                  <p><strong>📥 Export JSON:</strong> Downloads raw data for spreadsheet/database analysis</p>
+                  <p><strong>📄 Word Doc:</strong> Creates a formatted document that opens in print preview</p>
+                  <p><strong>📋 PDF:</strong> Generates a professional PDF report for sharing</p>
+                  <p><strong>🗑️ Clear Form:</strong> Resets all fields to start fresh</p>
                 </div>
               </div>
             </div>
@@ -771,3 +1101,39 @@
     </script>
 </body>
 </html>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monitor</label>
+                    <input
+                      type="text"
+                      value={formData.monitor}
+                      onChange={(e) => handleInputChange('monitor', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                    <input
+                      type="text"
+                      value={formData.projectName}
+                      onChange={(e) => handleInputChange('projectName', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
+                    <input
+                      type="text"
+                      value={formData.projectNumber}
+                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
