@@ -21,9 +21,9 @@ A digital field monitoring data entry system for archaeological and geological f
 
 ## Access
 
-Visit: https://[your-username].github.io/field-monitoring-system
+Visit: https://Tilkin85.github.io/field-monitoring-system
 
-Replace `[your-username]` with your actual GitHub username.
+
 
 ## For Field Workers
 
