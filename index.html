@@ -192,265 +192,88 @@
 
           const generateWordDocument = () => {
             const timestamp = new Date().toLocaleString();
-            const reportId = `REPORT_${Date.now()}`;
+            const reportId = 'REPORT_' + Date.now();
             
             // Create photo log HTML safely
             const photoLogHTML = formData.photoLog.map((photo, index) => {
-              return `
-                <div class="photo-entry">
-                  <strong>Photo Entry ${index + 1}</strong><br>
-                  Photo #: ${safeValue(photo.photoNum)}<br>
-                  Date: ${safeValue(photo.date)}<br>
-                  Time: ${safeValue(photo.time)}<br>
-                  GPS: ${safeValue(photo.gps)}<br>
-                  Direction: ${safeValue(photo.direction)}<br>
-                  Equipment: ${safeValue(photo.equipment)}<br>
-                  Description: ${safeValue(photo.description)}
-                </div>
-              `;
+              return '<div class="photo-entry">' +
+                '<strong>Photo Entry ' + (index + 1) + '</strong><br>' +
+                'Photo #: ' + safeValue(photo.photoNum) + '<br>' +
+                'Date: ' + safeValue(photo.date) + '<br>' +
+                'Time: ' + safeValue(photo.time) + '<br>' +
+                'GPS: ' + safeValue(photo.gps) + '<br>' +
+                'Direction: ' + safeValue(photo.direction) + '<br>' +
+                'Equipment: ' + safeValue(photo.equipment) + '<br>' +
+                'Description: ' + safeValue(photo.description) +
+                '</div>';
             }).join('');
 
-            // Create document HTML
-            const documentHTML = `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <title>Field Monitoring Report - ${reportId}</title>
-                <style>
-                  body {
-                    font-family: 'Times New Roman', serif;
-                    line-height: 1.6;
-                    margin: 40px;
-                    background: white;
-                  }
-                  h1 {
-                    text-align: center;
-                    border-bottom: 2px solid #000;
-                    padding-bottom: 10px;
-                    margin-bottom: 30px;
-                  }
-                  h2 {
-                    background-color: #f0f0f0;
-                    padding: 8px;
-                    margin-top: 20px;
-                    margin-bottom: 10px;
-                    border-left: 4px solid #007acc;
-                  }
-                  .field-group {
-                    margin-bottom: 15px;
-                    display: flex;
-                    flex-wrap: wrap;
-                  }
-                  .field-label {
-                    font-weight: bold;
-                    min-width: 150px;
-                    margin-right: 10px;
-                  }
-                  .field-value {
-                    flex: 1;
-                    border-bottom: 1px dotted #ccc;
-                    min-height: 20px;
-                    padding-bottom: 2px;
-                  }
-                  .photo-entry {
-                    border: 1px solid #ccc;
-                    padding: 10px;
-                    margin-bottom: 10px;
-                  }
-                </style>
-              </head>
-              <body>
-                <h1>FIELD MONITORING REPORT</h1>
-                
-                <div class="field-group">
-                  <span class="field-label">Report ID:</span>
-                  <span class="field-value">${reportId}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Generated:</span>
-                  <span class="field-value">${timestamp}</span>
-                </div>
-
-                <h2>Basic Information</h2>
-                <div class="field-group">
-                  <span class="field-label">Monitor:</span>
-                  <span class="field-value">${safeValue(formData.monitor)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Project Name:</span>
-                  <span class="field-value">${safeValue(formData.projectName)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Date:</span>
-                  <span class="field-value">${safeValue(formData.date)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Project Number:</span>
-                  <span class="field-value">${safeValue(formData.projectNumber)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Total Hours:</span>
-                  <span class="field-value">${safeValue(formData.totalHrs)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Total Miles:</span>
-                  <span class="field-value">${safeValue(formData.totalMi)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Time In:</span>
-                  <span class="field-value">${safeValue(formData.timeIn)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Time Out:</span>
-                  <span class="field-value">${safeValue(formData.timeOut)}</span>
-                </div>
-
-                <h2>Field Observations</h2>
-                <div class="field-group">
-                  <span class="field-label">Project Areas Monitored:</span>
-                  <span class="field-value">${safeValue(formData.projectAreas)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Fossils:</span>
-                  <span class="field-value">${safeValue(formData.fossils)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Prehistoric Artifacts/Ecofacts:</span>
-                  <span class="field-value">${safeValue(formData.prehistoricArtifacts)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Historic Artifacts/Ecofacts:</span>
-                  <span class="field-value">${safeValue(formData.historicArtifacts)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Architectural Features:</span>
-                  <span class="field-value">${safeValue(formData.architecturalFeatures)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Stratigraphy:</span>
-                  <span class="field-value">${safeValue(formData.stratigraphy)}</span>
-                </div>
-
-                <h2>Lithology</h2>
-                <div class="field-group">
-                  <span class="field-label">Grain Size:</span>
-                  <span class="field-value">${safeValue(formData.grainSize)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Color:</span>
-                  <span class="field-value">${safeValue(formData.color)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Texture:</span>
-                  <span class="field-value">${safeValue(formData.texture)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Sorting:</span>
-                  <span class="field-value">${safeValue(formData.sorting)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Sediments:</span>
-                  <span class="field-value">${formData.seds.length > 0 ? formData.seds.join(', ') : 'N/A'}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Mineralization:</span>
-                  <span class="field-value">${formData.mineralization.length > 0 ? formData.mineralization.join(', ') : 'N/A'}</span>
-                </div>
-
-                <h2>Site & Excavation Conditions</h2>
-                <div class="field-group">
-                  <span class="field-label">Site Conditions & Personnel:</span>
-                  <span class="field-value">${safeValue(formData.siteConditions)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Excavation Conditions:</span>
-                  <span class="field-value">${safeValue(formData.excavationConditions)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Other Observations:</span>
-                  <span class="field-value">${safeValue(formData.otherObservations)}</span>
-                </div>
-
-                <h2>Findings Report</h2>
-                <div class="field-group">
-                  <span class="field-label">Field Number:</span>
-                  <span class="field-value">${safeValue(formData.fieldNumber)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Field ID:</span>
-                  <span class="field-value">${safeValue(formData.fieldId)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Datum:</span>
-                  <span class="field-value">${safeValue(formData.datum)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Condition:</span>
-                  <span class="field-value">${safeValue(formData.condition)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Context Description:</span>
-                  <span class="field-value">${safeValue(formData.contextDescription)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Approximate Age:</span>
-                  <span class="field-value">${safeValue(formData.approxAge)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Soils:</span>
-                  <span class="field-value">${safeValue(formData.soils)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Location:</span>
-                  <span class="field-value">${safeValue(formData.location)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Fate of Locality:</span>
-                  <span class="field-value">${safeValue(formData.fateOfLocality)}</span>
-                </div>
-
-                <h2>Coordinates</h2>
-                <div class="field-group">
-                  <span class="field-label">UTM Easting:</span>
-                  <span class="field-value">${safeValue(formData.utmE)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">UTM Northing:</span>
-                  <span class="field-value">${safeValue(formData.utmN)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Latitude N:</span>
-                  <span class="field-value">${safeValue(formData.latitude)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Longitude W:</span>
-                  <span class="field-value">${safeValue(formData.longitude)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Elevation:</span>
-                  <span class="field-value">${safeValue(formData.elevation)}</span>
-                </div>
-                <div class="field-group">
-                  <span class="field-label">Number of Artifacts/Ecofacts:</span>
-                  <span class="field-value">${safeValue(formData.numberOfArtifacts)}</span>
-                </div>
-
-                <h2>Photo Log</h2>
-                ${photoLogHTML}
-
-                <hr style="margin-top: 40px;">
-                <p style="text-align: center; font-size: 12px; color: #666;">
-                  Generated by Field Monitoring System on ${timestamp}
-                </p>
-
-                <script>
-                  window.onload = function() {
-                    window.print();
-                  };
-                </script>
-              </body>
-              </html>
-            `;
+            // Create document HTML using string concatenation
+            const documentHTML = '<!DOCTYPE html>' +
+              '<html><head>' +
+              '<title>Field Monitoring Report - ' + reportId + '</title>' +
+              '<style>' +
+              'body { font-family: "Times New Roman", serif; line-height: 1.6; margin: 40px; background: white; }' +
+              'h1 { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; }' +
+              'h2 { background-color: #f0f0f0; padding: 8px; margin-top: 20px; margin-bottom: 10px; border-left: 4px solid #007acc; }' +
+              '.field-group { margin-bottom: 15px; display: flex; flex-wrap: wrap; }' +
+              '.field-label { font-weight: bold; min-width: 150px; margin-right: 10px; }' +
+              '.field-value { flex: 1; border-bottom: 1px dotted #ccc; min-height: 20px; padding-bottom: 2px; }' +
+              '.photo-entry { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }' +
+              '</style></head><body>' +
+              '<h1>FIELD MONITORING REPORT</h1>' +
+              '<div class="field-group"><span class="field-label">Report ID:</span><span class="field-value">' + reportId + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Generated:</span><span class="field-value">' + timestamp + '</span></div>' +
+              '<h2>Basic Information</h2>' +
+              '<div class="field-group"><span class="field-label">Monitor:</span><span class="field-value">' + safeValue(formData.monitor) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Project Name:</span><span class="field-value">' + safeValue(formData.projectName) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Date:</span><span class="field-value">' + safeValue(formData.date) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Project Number:</span><span class="field-value">' + safeValue(formData.projectNumber) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Total Hours:</span><span class="field-value">' + safeValue(formData.totalHrs) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Total Miles:</span><span class="field-value">' + safeValue(formData.totalMi) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Time In:</span><span class="field-value">' + safeValue(formData.timeIn) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Time Out:</span><span class="field-value">' + safeValue(formData.timeOut) + '</span></div>' +
+              '<h2>Field Observations</h2>' +
+              '<div class="field-group"><span class="field-label">Project Areas Monitored:</span><span class="field-value">' + safeValue(formData.projectAreas) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Fossils:</span><span class="field-value">' + safeValue(formData.fossils) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Prehistoric Artifacts/Ecofacts:</span><span class="field-value">' + safeValue(formData.prehistoricArtifacts) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Historic Artifacts/Ecofacts:</span><span class="field-value">' + safeValue(formData.historicArtifacts) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Architectural Features:</span><span class="field-value">' + safeValue(formData.architecturalFeatures) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Stratigraphy:</span><span class="field-value">' + safeValue(formData.stratigraphy) + '</span></div>' +
+              '<h2>Lithology</h2>' +
+              '<div class="field-group"><span class="field-label">Grain Size:</span><span class="field-value">' + safeValue(formData.grainSize) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Color:</span><span class="field-value">' + safeValue(formData.color) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Texture:</span><span class="field-value">' + safeValue(formData.texture) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Sorting:</span><span class="field-value">' + safeValue(formData.sorting) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Sediments:</span><span class="field-value">' + (formData.seds.length > 0 ? formData.seds.join(', ') : 'N/A') + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Mineralization:</span><span class="field-value">' + (formData.mineralization.length > 0 ? formData.mineralization.join(', ') : 'N/A') + '</span></div>' +
+              '<h2>Site & Excavation Conditions</h2>' +
+              '<div class="field-group"><span class="field-label">Site Conditions & Personnel:</span><span class="field-value">' + safeValue(formData.siteConditions) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Excavation Conditions:</span><span class="field-value">' + safeValue(formData.excavationConditions) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Other Observations:</span><span class="field-value">' + safeValue(formData.otherObservations) + '</span></div>' +
+              '<h2>Findings Report</h2>' +
+              '<div class="field-group"><span class="field-label">Field Number:</span><span class="field-value">' + safeValue(formData.fieldNumber) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Field ID:</span><span class="field-value">' + safeValue(formData.fieldId) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Datum:</span><span class="field-value">' + safeValue(formData.datum) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Condition:</span><span class="field-value">' + safeValue(formData.condition) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Context Description:</span><span class="field-value">' + safeValue(formData.contextDescription) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Approximate Age:</span><span class="field-value">' + safeValue(formData.approxAge) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Soils:</span><span class="field-value">' + safeValue(formData.soils) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Location:</span><span class="field-value">' + safeValue(formData.location) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Fate of Locality:</span><span class="field-value">' + safeValue(formData.fateOfLocality) + '</span></div>' +
+              '<h2>Coordinates</h2>' +
+              '<div class="field-group"><span class="field-label">UTM Easting:</span><span class="field-value">' + safeValue(formData.utmE) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">UTM Northing:</span><span class="field-value">' + safeValue(formData.utmN) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Latitude N:</span><span class="field-value">' + safeValue(formData.latitude) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Longitude W:</span><span class="field-value">' + safeValue(formData.longitude) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Elevation:</span><span class="field-value">' + safeValue(formData.elevation) + '</span></div>' +
+              '<div class="field-group"><span class="field-label">Number of Artifacts/Ecofacts:</span><span class="field-value">' + safeValue(formData.numberOfArtifacts) + '</span></div>' +
+              '<h2>Photo Log</h2>' +
+              photoLogHTML +
+              '<hr style="margin-top: 40px;">' +
+              '<p style="text-align: center; font-size: 12px; color: #666;">Generated by Field Monitoring System on ' + timestamp + '</p>' +
+              '<script>window.onload = function() { window.print(); };</script>' +
+              '</body></html>';
 
             // Open in new window
             const printWindow = window.open('', '_blank');
@@ -462,7 +285,7 @@
             try {
               const doc = new window.jspdf.jsPDF();
               const timestamp = new Date().toLocaleString();
-              const reportId = `REPORT_${Date.now()}`;
+              const reportId = 'REPORT_' + Date.now();
               
               let yPosition = 20;
               const lineHeight = 7;
@@ -493,8 +316,8 @@
               // Report Info
               doc.setFontSize(10);
               doc.setFont(undefined, 'normal');
-              yPosition = addText(`Report ID: ${reportId}`, 20, yPosition);
-              yPosition = addText(`Generated: ${timestamp}`, 20, yPosition);
+              yPosition = addText('Report ID: ' + reportId, 20, yPosition);
+              yPosition = addText('Generated: ' + timestamp, 20, yPosition);
               yPosition += 10;
               
               // Basic Information
@@ -504,14 +327,14 @@
               doc.setFont(undefined, 'normal');
               yPosition += 5;
               
-              yPosition = addText(`Monitor: ${safeValue(formData.monitor)}`, 20, yPosition);
-              yPosition = addText(`Project Name: ${safeValue(formData.projectName)}`, 20, yPosition);
-              yPosition = addText(`Date: ${safeValue(formData.date)}`, 20, yPosition);
-              yPosition = addText(`Project Number: ${safeValue(formData.projectNumber)}`, 20, yPosition);
-              yPosition = addText(`Total Hours: ${safeValue(formData.totalHrs)}`, 20, yPosition);
-              yPosition = addText(`Total Miles: ${safeValue(formData.totalMi)}`, 20, yPosition);
-              yPosition = addText(`Time In: ${safeValue(formData.timeIn)}`, 20, yPosition);
-              yPosition = addText(`Time Out: ${safeValue(formData.timeOut)}`, 20, yPosition);
+              yPosition = addText('Monitor: ' + safeValue(formData.monitor), 20, yPosition);
+              yPosition = addText('Project Name: ' + safeValue(formData.projectName), 20, yPosition);
+              yPosition = addText('Date: ' + safeValue(formData.date), 20, yPosition);
+              yPosition = addText('Project Number: ' + safeValue(formData.projectNumber), 20, yPosition);
+              yPosition = addText('Total Hours: ' + safeValue(formData.totalHrs), 20, yPosition);
+              yPosition = addText('Total Miles: ' + safeValue(formData.totalMi), 20, yPosition);
+              yPosition = addText('Time In: ' + safeValue(formData.timeIn), 20, yPosition);
+              yPosition = addText('Time Out: ' + safeValue(formData.timeOut), 20, yPosition);
               yPosition += 10;
               
               // Field Observations
@@ -521,12 +344,12 @@
               doc.setFont(undefined, 'normal');
               yPosition += 5;
               
-              yPosition = addText(`Project Areas: ${safeValue(formData.projectAreas)}`, 20, yPosition);
-              yPosition = addText(`Fossils: ${safeValue(formData.fossils)}`, 20, yPosition);
-              yPosition = addText(`Prehistoric Artifacts: ${safeValue(formData.prehistoricArtifacts)}`, 20, yPosition);
-              yPosition = addText(`Historic Artifacts: ${safeValue(formData.historicArtifacts)}`, 20, yPosition);
-              yPosition = addText(`Architectural Features: ${safeValue(formData.architecturalFeatures)}`, 20, yPosition);
-              yPosition = addText(`Stratigraphy: ${safeValue(formData.stratigraphy)}`, 20, yPosition);
+              yPosition = addText('Project Areas: ' + safeValue(formData.projectAreas), 20, yPosition);
+              yPosition = addText('Fossils: ' + safeValue(formData.fossils), 20, yPosition);
+              yPosition = addText('Prehistoric Artifacts: ' + safeValue(formData.prehistoricArtifacts), 20, yPosition);
+              yPosition = addText('Historic Artifacts: ' + safeValue(formData.historicArtifacts), 20, yPosition);
+              yPosition = addText('Architectural Features: ' + safeValue(formData.architecturalFeatures), 20, yPosition);
+              yPosition = addText('Stratigraphy: ' + safeValue(formData.stratigraphy), 20, yPosition);
               yPosition += 10;
               
               // Coordinates
@@ -536,14 +359,14 @@
               doc.setFont(undefined, 'normal');
               yPosition += 5;
               
-              yPosition = addText(`UTM Easting: ${safeValue(formData.utmE)}`, 20, yPosition);
-              yPosition = addText(`UTM Northing: ${safeValue(formData.utmN)}`, 20, yPosition);
-              yPosition = addText(`Latitude: ${safeValue(formData.latitude)}`, 20, yPosition);
-              yPosition = addText(`Longitude: ${safeValue(formData.longitude)}`, 20, yPosition);
-              yPosition = addText(`Elevation: ${safeValue(formData.elevation)}`, 20, yPosition);
+              yPosition = addText('UTM Easting: ' + safeValue(formData.utmE), 20, yPosition);
+              yPosition = addText('UTM Northing: ' + safeValue(formData.utmN), 20, yPosition);
+              yPosition = addText('Latitude: ' + safeValue(formData.latitude), 20, yPosition);
+              yPosition = addText('Longitude: ' + safeValue(formData.longitude), 20, yPosition);
+              yPosition = addText('Elevation: ' + safeValue(formData.elevation), 20, yPosition);
               
               // Save PDF
-              doc.save(`field_monitoring_report_${new Date().toISOString().split('T')[0]}.pdf`);
+              doc.save('field_monitoring_report_' + new Date().toISOString().split('T')[0] + '.pdf');
               
             } catch (error) {
               alert('PDF generation failed. Please use the Word Document option instead.');
@@ -651,60 +474,6 @@
                 {/* Basic Information */}
                 <div className="grid md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                   <h2 className="col-span-full text-xl font-semibold text-gray-700 mb-3">Basic Information</h2>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Monitor</label>
-                    <input
-                      type="text"
-                      value={formData.monitor}
-                      onChange={(e) => handleInputChange('monitor', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                    <input
-                      type="text"
-                      value={formData.projectName}
-                      onChange={(e) => handleInputChange('projectName', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => handleInputChange('date', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
-                    <input
-                      type="text"
-                      value={formData.projectNumber}
-                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Hours</label>
-                    <input
-                      type="text"
-                      value={formData.totalHrs}
-                      onChange={(e) => handleInputChange('totalHrs', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Miles</label>
-                    <input
-                      type="text"
-                      value={formData.totalMi}
-                      onChange={(e) => handleInputChange('totalMi', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Time In</label>
                     <input
@@ -1193,4 +962,58 @@
         ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
     </script>
 </body>
-</html>
+</html>-gray-700 mb-1">Monitor</label>
+                    <input
+                      type="text"
+                      value={formData.monitor}
+                      onChange={(e) => handleInputChange('monitor', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                    <input
+                      type="text"
+                      value={formData.projectName}
+                      onChange={(e) => handleInputChange('projectName', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Number</label>
+                    <input
+                      type="text"
+                      value={formData.projectNumber}
+                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Hours</label>
+                    <input
+                      type="text"
+                      value={formData.totalHrs}
+                      onChange={(e) => handleInputChange('totalHrs', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Miles</label>
+                    <input
+                      type="text"
+                      value={formData.totalMi}
+                      onChange={(e) => handleInputChange('totalMi', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text
