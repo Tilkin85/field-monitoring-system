@@ -93,7 +93,7 @@
 
           const [savedReports, setSavedReports] = useState(() => {
             try {
-              const saved = window.localStorage?.getItem('fieldMonitoringReports');
+              const saved = localStorage?.getItem('fieldMonitoringReports');
               return saved ? JSON.parse(saved) : [];
             } catch (e) {
               return [];
@@ -174,8 +174,8 @@
             const updatedReports = [...savedReports, newReport];
             setSavedReports(updatedReports);
             try {
-              if (window.localStorage) {
-                window.localStorage.setItem('fieldMonitoringReports', JSON.stringify(updatedReports));
+              if (localStorage) {
+                localStorage.setItem('fieldMonitoringReports', JSON.stringify(updatedReports));
               }
               alert('Report saved as ' + reportId);
             } catch (e) {
@@ -195,7 +195,181 @@
           };
 
           const safeValue = (value) => {
-            return value || 'N/A';
+            return value || '';
+          };
+
+          // NEW FUNCTION: Export to PDF matching exact original form layout
+          const generateOriginalFormPDF = () => {
+            try {
+              const { jsPDF } = window.jspdf;
+              const doc = new jsPDF();
+              
+              // Set up fonts and sizes
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(14);
+              
+              // Header
+              doc.text('ArchaeoPaleo Resource Management Inc.', 20, 20);
+              doc.setFontSize(12);
+              doc.text('DAILY ARCHAEO/PALEO FIELD SUMMARY', 20, 30);
+              
+              // Monitor field (top right)
+              doc.text('Monitor: ' + safeValue(formData.monitor), 130, 30);
+              
+              // First row of fields
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              
+              doc.text('Project Name: ' + safeValue(formData.projectName), 20, 45);
+              doc.text('Date: ' + safeValue(formData.date), 150, 45);
+              
+              doc.text('Project Number: ' + safeValue(formData.projectNumber), 20, 55);
+              doc.text('Total Hrs: ' + safeValue(formData.totalHrs), 80, 55);
+              doc.text('Total Mi: ' + safeValue(formData.totalMi), 120, 55);
+              
+              doc.text('Project Location: ' + safeValue(formData.location), 20, 65);
+              doc.text('Time in: ' + safeValue(formData.timeIn), 130, 65);
+              
+              doc.text('Project areas monitored (number & key on weekly map):', 20, 75);
+              doc.text('Time out: ' + safeValue(formData.timeOut), 130, 75);
+              doc.text(safeValue(formData.projectAreas), 20, 85);
+              
+              // Observations sections
+              let yPos = 95;
+              
+              doc.text('Fossils:', 20, yPos);
+              doc.text(safeValue(formData.fossils), 20, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Prehistoric artifacts/ecofacts:', 20, yPos);
+              doc.text(safeValue(formData.prehistoricArtifacts), 20, yPos + 10);
+              doc.text("con't Y N", 180, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Historic artifacts/ecofacts:', 20, yPos);
+              doc.text(safeValue(formData.historicArtifacts), 20, yPos + 10);
+              doc.text("con't Y N", 180, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Architectural features:', 20, yPos);
+              doc.text(safeValue(formData.architecturalFeatures), 20, yPos + 10);
+              doc.text("con't Y N", 180, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Stratigraphy: (turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional', 20, yPos);
+              doc.text('gradational / faults / slides / photos)', 20, yPos + 8);
+              doc.text(safeValue(formData.stratigraphy), 20, yPos + 18);
+              yPos += 35;
+              
+              // Lithology section
+              doc.text('Lithology: Grain size: (' + safeValue(formData.grainSize) + ') Color: ' + safeValue(formData.color) + 
+                      ' Texture: ' + safeValue(formData.texture) + ' Sorting: ' + safeValue(formData.sorting), 20, yPos);
+              yPos += 15;
+              
+              // Sediments
+              const sedsText = formData.seds.length > 0 ? formData.seds.join(' ') : '';
+              doc.text('Sed: ( mud/s silt/s sand/s lime/s shale conglomerate breccia concretions ) ' + sedsText, 20, yPos);
+              doc.text("con't Y N", 180, yPos);
+              yPos += 15;
+              
+              // Mineralization
+              const minText = formData.mineralization.length > 0 ? formData.mineralization.join(' / ') : '';
+              doc.text('Mineralization: caliche / siliceous / paleosol / alluvium / lag deposits / ' + minText, 20, yPos);
+              yPos += 20;
+              
+              // Site conditions
+              doc.text('Site conditions & personnel: ( non-compliance / hazards / weather / safety concerns / visitors)', 20, yPos);
+              doc.text(safeValue(formData.siteConditions), 20, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Excavation conditions: (status / equipment / cuts / access)', 20, yPos);
+              doc.text(safeValue(formData.excavationConditions), 20, yPos + 10);
+              yPos += 25;
+              
+              doc.text('Other Observations & Comments:', 20, yPos);
+              doc.text(safeValue(formData.otherObservations), 20, yPos + 10);
+              doc.text("con't Y N", 180, yPos + 10);
+              yPos += 25;
+              
+              // Check if we need a new page
+              if (yPos > 240) {
+                doc.addPage();
+                yPos = 20;
+              }
+              
+              // Findings section
+              doc.text('Field Number: ' + safeValue(formData.fieldNumber) + 
+                      ' Field ID: ' + safeValue(formData.fieldId) + 
+                      ' Datum: ' + safeValue(formData.datum), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Condition: ( poor / fair / good / excellent / damaged / partial / whole ) ' + safeValue(formData.condition), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Arti/eco-fact context description: ' + safeValue(formData.contextDescription) + 
+                      ' Approx. age: ' + safeValue(formData.approxAge), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Soils: ' + safeValue(formData.soils), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Location: (pads / cuts /landmarks) ' + safeValue(formData.location), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Fate of Locality: (accessible / buried / graded away ) ' + safeValue(formData.fateOfLocality), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Coordinates: UTM ' + safeValue(formData.utmE) + 'E/' + safeValue(formData.utmN) + 'N// ' +
+                      'Lat. N' + safeValue(formData.latitude) + ' Long.W' + safeValue(formData.longitude) + 
+                      ' Elev' + safeValue(formData.elevation), 20, yPos);
+              yPos += 15;
+              
+              doc.text('Number of arti/eco-facts: specimens / paperbags / boxes / samples / bags of matrix: ' + 
+                      safeValue(formData.numberOfArtifacts), 20, yPos);
+              
+              // Add photo log on next page if there are photos
+              if (formData.photoLog.some(photo => photo.photoNum || photo.description)) {
+                doc.addPage();
+                yPos = 20;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text('PHOTO LOG', 20, yPos);
+                yPos += 15;
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                
+                formData.photoLog.forEach((photo, index) => {
+                  if (photo.photoNum || photo.description) {
+                    doc.text('Photo #: ' + safeValue(photo.photoNum) + 
+                            ' Date: ' + safeValue(photo.date) + 
+                            ' Time: ' + safeValue(photo.time), 20, yPos);
+                    yPos += 10;
+                    
+                    doc.text('GPS: ' + safeValue(photo.gps) + 
+                            ' Direction: ' + safeValue(photo.direction) + 
+                            ' Equipment: ' + safeValue(photo.equipment), 20, yPos);
+                    yPos += 10;
+                    
+                    doc.text('Description: ' + safeValue(photo.description), 20, yPos);
+                    yPos += 15;
+                    
+                    if (yPos > 250) {
+                      doc.addPage();
+                      yPos = 20;
+                    }
+                  }
+                });
+              }
+              
+              // Save the PDF
+              doc.save('ArchaeoPaleo_Field_Summary_' + new Date().toISOString().split('T')[0] + '.pdf');
+              
+            } catch (error) {
+              alert('PDF generation failed: ' + error.message);
+              console.error('PDF Error:', error);
+            }
           };
 
           const generatePDF = () => {
@@ -533,6 +707,12 @@
                     📥 Export JSON
                   </button>
                   <button 
+                    onClick={generateOriginalFormPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  >
+                    📄 Original Form PDF
+                  </button>
+                  <button 
                     onClick={generateWordDocument}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
                   >
@@ -540,9 +720,9 @@
                   </button>
                   <button 
                     onClick={generatePDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
                   >
-                    📋 PDF
+                    📋 Detailed PDF
                   </button>
                   <button 
                     onClick={clearForm}
@@ -556,7 +736,7 @@
               {savedReports.length > 0 && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                   <h3 className="font-semibold text-blue-800 mb-2">Saved Reports: {savedReports.length}</h3>
-                  <p className="text-sm text-blue-600">Export options: JSON (data), Word Document (.doc), or PDF with embedded photos</p>
+                  <p className="text-sm text-blue-600">Export options: JSON (data), Original Form PDF (matches your template), Word Document (.doc), or Detailed PDF with embedded photos</p>
                 </div>
               )}
 
@@ -1171,8 +1351,9 @@
                 <div className="text-sm text-blue-700 space-y-1">
                   <p><strong>💾 Save Report:</strong> Saves form data locally with unique ID, timestamp, and uploaded photos</p>
                   <p><strong>📥 Export JSON:</strong> Downloads raw data including photo information for database analysis</p>
+                  <p><strong>📄 Original Form PDF:</strong> Creates PDF matching the exact ArchaeoPaleo form layout and format</p>
                   <p><strong>📄 Word Doc:</strong> Creates a formatted .doc file with photo references and clean layout</p>
-                  <p><strong>📋 PDF:</strong> Generates a professional PDF with embedded photos and organized sections</p>
+                  <p><strong>📋 Detailed PDF:</strong> Generates a comprehensive PDF with embedded photos and organized sections</p>
                   <p><strong>🗑️ Clear Form:</strong> Resets all fields and removes all uploaded photos</p>
                   <p><strong>📸 Photo Storage:</strong> Photos are stored locally and included in exports - no external server needed!</p>
                 </div>
