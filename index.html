@@ -40,6 +40,12 @@
             border-color: #3b82f6;
             background-color: #dbeafe;
         }
+        .linked-photo-preview {
+            max-width: 100px;
+            max-height: 75px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+        }
     </style>
 </head>
 <body>
@@ -73,22 +79,36 @@
             siteConditions: '',
             excavationConditions: '',
             otherObservations: '',
-            fieldNumber: '',
-            fieldId: '',
-            datum: 'NAD 83 CONUS',
-            condition: '',
-            contextDescription: '',
-            approxAge: '',
-            soils: '',
-            location: '',
-            fateOfLocality: '',
+            findingsReports: [{
+              fieldNumber: '',
+              fieldId: '',
+              datum: 'NAD 83 CONUS',
+              condition: '',
+              contextDescription: '',
+              approxAge: '',
+              soils: '',
+              location: '',
+              fateOfLocality: '',
+              linkedPhotoIds: []
+            }],
             utmE: '',
             utmN: '',
             latitude: '',
             longitude: '',
             elevation: '',
             numberOfArtifacts: '',
-            photoLog: [{ photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '', photoFile: null, photoPreview: null }]
+            photoLog: [{ 
+              id: 'photo_' + Date.now(), 
+              photoNum: '', 
+              date: '', 
+              time: '', 
+              gps: '', 
+              direction: '', 
+              description: '', 
+              equipment: '', 
+              photoFile: null, 
+              photoPreview: null 
+            }]
           });
 
           const [savedReports, setSavedReports] = useState(() => {
@@ -110,6 +130,49 @@
               [field]: prev[field].includes(value) 
                 ? prev[field].filter(item => item !== value)
                 : [...prev[field], value]
+            }));
+          };
+
+          const handleFindingsReportChange = (index, field, value) => {
+            const newReports = [...formData.findingsReports];
+            newReports[index][field] = value;
+            setFormData(prev => ({ ...prev, findingsReports: newReports }));
+          };
+
+          const handlePhotoLinkChange = (reportIndex, photoId, isLinked) => {
+            const newReports = [...formData.findingsReports];
+            if (isLinked) {
+              if (!newReports[reportIndex].linkedPhotoIds.includes(photoId)) {
+                newReports[reportIndex].linkedPhotoIds.push(photoId);
+              }
+            } else {
+              newReports[reportIndex].linkedPhotoIds = newReports[reportIndex].linkedPhotoIds.filter(id => id !== photoId);
+            }
+            setFormData(prev => ({ ...prev, findingsReports: newReports }));
+          };
+
+          const addFindingsReport = () => {
+            setFormData(prev => ({
+              ...prev,
+              findingsReports: [...prev.findingsReports, {
+                fieldNumber: '',
+                fieldId: '',
+                datum: 'NAD 83 CONUS',
+                condition: '',
+                contextDescription: '',
+                approxAge: '',
+                soils: '',
+                location: '',
+                fateOfLocality: '',
+                linkedPhotoIds: []
+              }]
+            }));
+          };
+
+          const removeFindingsReport = (index) => {
+            setFormData(prev => ({
+              ...prev,
+              findingsReports: prev.findingsReports.filter((_, i) => i !== index)
             }));
           };
 
@@ -136,23 +199,59 @@
 
           const removePhoto = (index) => {
             const newPhotoLog = [...formData.photoLog];
+            const photoId = newPhotoLog[index].id;
             newPhotoLog[index].photoFile = null;
             newPhotoLog[index].photoPreview = null;
-            setFormData(prev => ({ ...prev, photoLog: newPhotoLog }));
+            
+            // Also remove this photo from all findings reports
+            const newReports = formData.findingsReports.map(report => ({
+              ...report,
+              linkedPhotoIds: report.linkedPhotoIds.filter(id => id !== photoId)
+            }));
+            
+            setFormData(prev => ({ 
+              ...prev, 
+              photoLog: newPhotoLog,
+              findingsReports: newReports
+            }));
           };
 
           const addPhotoEntry = () => {
             setFormData(prev => ({
               ...prev,
-              photoLog: [...prev.photoLog, { photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '', photoFile: null, photoPreview: null }]
+              photoLog: [...prev.photoLog, { 
+                id: 'photo_' + Date.now(), 
+                photoNum: '', 
+                date: '', 
+                time: '', 
+                gps: '', 
+                direction: '', 
+                description: '', 
+                equipment: '', 
+                photoFile: null, 
+                photoPreview: null 
+              }]
             }));
           };
 
           const removePhotoEntry = (index) => {
+            const photoId = formData.photoLog[index].id;
+            
+            // Remove photo from findings reports
+            const newReports = formData.findingsReports.map(report => ({
+              ...report,
+              linkedPhotoIds: report.linkedPhotoIds.filter(id => id !== photoId)
+            }));
+            
             setFormData(prev => ({
               ...prev,
-              photoLog: prev.photoLog.filter((_, i) => i !== index)
+              photoLog: prev.photoLog.filter((_, i) => i !== index),
+              findingsReports: newReports
             }));
+          };
+
+          const getLinkedPhotos = (linkedPhotoIds) => {
+            return formData.photoLog.filter(photo => linkedPhotoIds.includes(photo.id));
           };
 
           const saveReport = () => {
@@ -198,7 +297,7 @@
             return value || '';
           };
 
-          // NEW FUNCTION: Export to PDF matching exact original form layout
+          // Updated PDF generation functions to handle multiple findings reports
           const generateOriginalFormPDF = () => {
             try {
               const { jsPDF } = window.jspdf;
@@ -297,28 +396,46 @@
                 yPos = 20;
               }
               
-              // Findings section
-              doc.text('Field Number: ' + safeValue(formData.fieldNumber) + 
-                      ' Field ID: ' + safeValue(formData.fieldId) + 
-                      ' Datum: ' + safeValue(formData.datum), 20, yPos);
-              yPos += 15;
+              // Multiple Findings sections
+              formData.findingsReports.forEach((finding, index) => {
+                if (index > 0) {
+                  doc.addPage();
+                  yPos = 20;
+                }
+                
+                doc.text('FINDINGS REPORT ' + (index + 1), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Field Number: ' + safeValue(finding.fieldNumber) + 
+                        ' Field ID: ' + safeValue(finding.fieldId) + 
+                        ' Datum: ' + safeValue(finding.datum), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Condition: ( poor / fair / good / excellent / damaged / partial / whole ) ' + safeValue(finding.condition), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Arti/eco-fact context description: ' + safeValue(finding.contextDescription) + 
+                        ' Approx. age: ' + safeValue(finding.approxAge), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Soils: ' + safeValue(finding.soils), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Location: (pads / cuts /landmarks) ' + safeValue(finding.location), 20, yPos);
+                yPos += 15;
+                
+                doc.text('Fate of Locality: (accessible / buried / graded away ) ' + safeValue(finding.fateOfLocality), 20, yPos);
+                yPos += 15;
+                
+                // Linked photos
+                if (finding.linkedPhotoIds.length > 0) {
+                  const linkedPhotos = getLinkedPhotos(finding.linkedPhotoIds);
+                  doc.text('Linked Photos: ' + linkedPhotos.map(p => p.photoNum || 'Photo ' + (formData.photoLog.indexOf(p) + 1)).join(', '), 20, yPos);
+                  yPos += 15;
+                }
+              });
               
-              doc.text('Condition: ( poor / fair / good / excellent / damaged / partial / whole ) ' + safeValue(formData.condition), 20, yPos);
-              yPos += 15;
-              
-              doc.text('Arti/eco-fact context description: ' + safeValue(formData.contextDescription) + 
-                      ' Approx. age: ' + safeValue(formData.approxAge), 20, yPos);
-              yPos += 15;
-              
-              doc.text('Soils: ' + safeValue(formData.soils), 20, yPos);
-              yPos += 15;
-              
-              doc.text('Location: (pads / cuts /landmarks) ' + safeValue(formData.location), 20, yPos);
-              yPos += 15;
-              
-              doc.text('Fate of Locality: (accessible / buried / graded away ) ' + safeValue(formData.fateOfLocality), 20, yPos);
-              yPos += 15;
-              
+              // Coordinates (once per report)
               doc.text('Coordinates: UTM ' + safeValue(formData.utmE) + 'E/' + safeValue(formData.utmN) + 'N// ' +
                       'Lat. N' + safeValue(formData.latitude) + ' Long.W' + safeValue(formData.longitude) + 
                       ' Elev' + safeValue(formData.elevation), 20, yPos);
@@ -372,274 +489,8 @@
             }
           };
 
-          const generatePDF = () => {
-            try {
-              const { jsPDF } = window.jspdf;
-              const doc = new jsPDF();
-              const timestamp = new Date().toLocaleString();
-              const reportId = 'REPORT_' + Date.now();
-              
-              let yPosition = 20;
-              const lineHeight = 7;
-              const pageHeight = 280;
-              const leftMargin = 20;
-              
-              // Helper function to add text and handle page breaks
-              const addText = (text, x, y, options = {}) => {
-                if (y > pageHeight - 20) {
-                  doc.addPage();
-                  y = 20;
-                }
-                
-                if (options.fontSize) doc.setFontSize(options.fontSize);
-                if (options.bold) doc.setFont(undefined, 'bold');
-                if (options.normal) doc.setFont(undefined, 'normal');
-                
-                const lines = doc.splitTextToSize(text, 170);
-                doc.text(lines, x, y);
-                
-                return y + (lines.length * lineHeight) + (options.spacing || 0);
-              };
-
-              const addImage = (imageData, x, y, maxWidth = 80, maxHeight = 60) => {
-                if (y + maxHeight > pageHeight - 20) {
-                  doc.addPage();
-                  y = 20;
-                }
-                
-                try {
-                  // Calculate image dimensions to fit within maxWidth and maxHeight
-                  const img = new Image();
-                  img.src = imageData;
-                  
-                  let width = maxWidth;
-                  let height = maxHeight;
-                  
-                  if (img.width > img.height) {
-                    height = (img.height * maxWidth) / img.width;
-                  } else {
-                    width = (img.width * maxHeight) / img.height;
-                  }
-                  
-                  doc.addImage(imageData, 'JPEG', x, y, width, height);
-                  return y + height + 10;
-                } catch (error) {
-                  console.error('Error adding image to PDF:', error);
-                  return y + 10;
-                }
-              };
-              
-              // Title
-              yPosition = addText('FIELD MONITORING REPORT', leftMargin, yPosition, {fontSize: 18, bold: true, spacing: 10});
-              
-              // Report Info
-              yPosition = addText('Report ID: ' + reportId, leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Generated: ' + timestamp, leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Basic Information Section
-              yPosition = addText('BASIC INFORMATION', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('Monitor: ' + safeValue(formData.monitor), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Project Name: ' + safeValue(formData.projectName), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Date: ' + safeValue(formData.date), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Project Number: ' + safeValue(formData.projectNumber), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Total Hours: ' + safeValue(formData.totalHrs), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Total Miles: ' + safeValue(formData.totalMi), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Time In: ' + safeValue(formData.timeIn), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Time Out: ' + safeValue(formData.timeOut), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Field Observations Section
-              yPosition = addText('FIELD OBSERVATIONS', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('Project Areas Monitored: ' + safeValue(formData.projectAreas), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Fossils: ' + safeValue(formData.fossils), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Prehistoric Artifacts/Ecofacts: ' + safeValue(formData.prehistoricArtifacts), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Historic Artifacts/Ecofacts: ' + safeValue(formData.historicArtifacts), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Architectural Features: ' + safeValue(formData.architecturalFeatures), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Stratigraphy: ' + safeValue(formData.stratigraphy), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Lithology Section
-              yPosition = addText('LITHOLOGY', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('Grain Size: ' + safeValue(formData.grainSize), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Color: ' + safeValue(formData.color), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Texture: ' + safeValue(formData.texture), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Sorting: ' + safeValue(formData.sorting), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Sediments: ' + (formData.seds.length > 0 ? formData.seds.join(', ') : 'N/A'), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Mineralization: ' + (formData.mineralization.length > 0 ? formData.mineralization.join(', ') : 'N/A'), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Site Conditions Section
-              yPosition = addText('SITE & EXCAVATION CONDITIONS', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('Site Conditions & Personnel: ' + safeValue(formData.siteConditions), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Excavation Conditions: ' + safeValue(formData.excavationConditions), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Other Observations: ' + safeValue(formData.otherObservations), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Findings Report Section
-              yPosition = addText('FINDINGS REPORT', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('Field Number: ' + safeValue(formData.fieldNumber), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('Field ID: ' + safeValue(formData.fieldId), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Datum: ' + safeValue(formData.datum), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Condition: ' + safeValue(formData.condition), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Context Description: ' + safeValue(formData.contextDescription), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Approximate Age: ' + safeValue(formData.approxAge), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Soils: ' + safeValue(formData.soils), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Location: ' + safeValue(formData.location), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Fate of Locality: ' + safeValue(formData.fateOfLocality), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Coordinates Section
-              yPosition = addText('COORDINATES', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              yPosition = addText('UTM Easting: ' + safeValue(formData.utmE), leftMargin, yPosition, {fontSize: 10, normal: true});
-              yPosition = addText('UTM Northing: ' + safeValue(formData.utmN), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Latitude N: ' + safeValue(formData.latitude), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Longitude W: ' + safeValue(formData.longitude), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Elevation: ' + safeValue(formData.elevation), leftMargin, yPosition, {fontSize: 10});
-              yPosition = addText('Number of Artifacts/Ecofacts: ' + safeValue(formData.numberOfArtifacts), leftMargin, yPosition, {fontSize: 10, spacing: 10});
-              
-              // Photo Log Section with Images
-              yPosition = addText('PHOTO LOG', leftMargin, yPosition, {fontSize: 14, bold: true, spacing: 5});
-              formData.photoLog.forEach((photo, index) => {
-                yPosition = addText('Photo Entry ' + (index + 1) + ':', leftMargin, yPosition, {fontSize: 11, bold: true});
-                yPosition = addText('  Photo #: ' + safeValue(photo.photoNum), leftMargin, yPosition, {fontSize: 10, normal: true});
-                yPosition = addText('  Date: ' + safeValue(photo.date), leftMargin, yPosition, {fontSize: 10});
-                yPosition = addText('  Time: ' + safeValue(photo.time), leftMargin, yPosition, {fontSize: 10});
-                yPosition = addText('  GPS: ' + safeValue(photo.gps), leftMargin, yPosition, {fontSize: 10});
-                yPosition = addText('  Direction: ' + safeValue(photo.direction), leftMargin, yPosition, {fontSize: 10});
-                yPosition = addText('  Equipment: ' + safeValue(photo.equipment), leftMargin, yPosition, {fontSize: 10});
-                yPosition = addText('  Description: ' + safeValue(photo.description), leftMargin, yPosition, {fontSize: 10});
-                
-                // Add photo if available
-                if (photo.photoPreview) {
-                  yPosition = addImage(photo.photoPreview, leftMargin, yPosition + 5);
-                }
-                yPosition += 5;
-              });
-              
-              // Footer
-              if (yPosition > pageHeight - 30) {
-                doc.addPage();
-                yPosition = 20;
-              }
-              yPosition = addText('Generated by Field Monitoring System on ' + timestamp, leftMargin, yPosition + 10, {fontSize: 8, normal: true});
-              
-              // Save PDF
-              doc.save('field_monitoring_report_' + new Date().toISOString().split('T')[0] + '.pdf');
-              
-            } catch (error) {
-              alert('PDF generation failed: ' + error.message);
-              console.error('PDF Error:', error);
-            }
-          };
-
-          const generateWordDocument = () => {
-            const timestamp = new Date().toLocaleString();
-            const reportId = 'REPORT_' + Date.now();
-            
-            // Create a comprehensive linear document
-            let documentContent = '';
-            
-            // Header
-            documentContent += 'FIELD MONITORING REPORT\n';
-            documentContent += '=====================================\n\n';
-            documentContent += 'Report ID: ' + reportId + '\n';
-            documentContent += 'Generated: ' + timestamp + '\n\n';
-            
-            // Basic Information
-            documentContent += 'BASIC INFORMATION\n';
-            documentContent += '-----------------\n';
-            documentContent += 'Monitor: ' + safeValue(formData.monitor) + '\n';
-            documentContent += 'Project Name: ' + safeValue(formData.projectName) + '\n';
-            documentContent += 'Date: ' + safeValue(formData.date) + '\n';
-            documentContent += 'Project Number: ' + safeValue(formData.projectNumber) + '\n';
-            documentContent += 'Total Hours: ' + safeValue(formData.totalHrs) + '\n';
-            documentContent += 'Total Miles: ' + safeValue(formData.totalMi) + '\n';
-            documentContent += 'Time In: ' + safeValue(formData.timeIn) + '\n';
-            documentContent += 'Time Out: ' + safeValue(formData.timeOut) + '\n\n';
-            
-            // Field Observations
-            documentContent += 'FIELD OBSERVATIONS\n';
-            documentContent += '------------------\n';
-            documentContent += 'Project Areas Monitored: ' + safeValue(formData.projectAreas) + '\n';
-            documentContent += 'Fossils: ' + safeValue(formData.fossils) + '\n';
-            documentContent += 'Prehistoric Artifacts/Ecofacts: ' + safeValue(formData.prehistoricArtifacts) + '\n';
-            documentContent += 'Historic Artifacts/Ecofacts: ' + safeValue(formData.historicArtifacts) + '\n';
-            documentContent += 'Architectural Features: ' + safeValue(formData.architecturalFeatures) + '\n';
-            documentContent += 'Stratigraphy: ' + safeValue(formData.stratigraphy) + '\n\n';
-            
-            // Lithology
-            documentContent += 'LITHOLOGY\n';
-            documentContent += '---------\n';
-            documentContent += 'Grain Size: ' + safeValue(formData.grainSize) + '\n';
-            documentContent += 'Color: ' + safeValue(formData.color) + '\n';
-            documentContent += 'Texture: ' + safeValue(formData.texture) + '\n';
-            documentContent += 'Sorting: ' + safeValue(formData.sorting) + '\n';
-            documentContent += 'Sediments: ' + (formData.seds.length > 0 ? formData.seds.join(', ') : 'N/A') + '\n';
-            documentContent += 'Mineralization: ' + (formData.mineralization.length > 0 ? formData.mineralization.join(', ') : 'N/A') + '\n\n';
-            
-            // Site & Excavation Conditions
-            documentContent += 'SITE & EXCAVATION CONDITIONS\n';
-            documentContent += '----------------------------\n';
-            documentContent += 'Site Conditions & Personnel: ' + safeValue(formData.siteConditions) + '\n';
-            documentContent += 'Excavation Conditions: ' + safeValue(formData.excavationConditions) + '\n';
-            documentContent += 'Other Observations: ' + safeValue(formData.otherObservations) + '\n\n';
-            
-            // Findings Report
-            documentContent += 'FINDINGS REPORT\n';
-            documentContent += '---------------\n';
-            documentContent += 'Field Number: ' + safeValue(formData.fieldNumber) + '\n';
-            documentContent += 'Field ID: ' + safeValue(formData.fieldId) + '\n';
-            documentContent += 'Datum: ' + safeValue(formData.datum) + '\n';
-            documentContent += 'Condition: ' + safeValue(formData.condition) + '\n';
-            documentContent += 'Context Description: ' + safeValue(formData.contextDescription) + '\n';
-            documentContent += 'Approximate Age: ' + safeValue(formData.approxAge) + '\n';
-            documentContent += 'Soils: ' + safeValue(formData.soils) + '\n';
-            documentContent += 'Location: ' + safeValue(formData.location) + '\n';
-            documentContent += 'Fate of Locality: ' + safeValue(formData.fateOfLocality) + '\n\n';
-            
-            // Coordinates
-            documentContent += 'COORDINATES\n';
-            documentContent += '-----------\n';
-            documentContent += 'UTM Easting: ' + safeValue(formData.utmE) + '\n';
-            documentContent += 'UTM Northing: ' + safeValue(formData.utmN) + '\n';
-            documentContent += 'Latitude N: ' + safeValue(formData.latitude) + '\n';
-            documentContent += 'Longitude W: ' + safeValue(formData.longitude) + '\n';
-            documentContent += 'Elevation: ' + safeValue(formData.elevation) + '\n';
-            documentContent += 'Number of Artifacts/Ecofacts: ' + safeValue(formData.numberOfArtifacts) + '\n\n';
-            
-            // Photo Log
-            documentContent += 'PHOTO LOG\n';
-            documentContent += '---------\n';
-            formData.photoLog.forEach((photo, index) => {
-              documentContent += 'Photo Entry ' + (index + 1) + ':\n';
-              documentContent += '  Photo #: ' + safeValue(photo.photoNum) + '\n';
-              documentContent += '  Date: ' + safeValue(photo.date) + '\n';
-              documentContent += '  Time: ' + safeValue(photo.time) + '\n';
-              documentContent += '  GPS Coordinates: ' + safeValue(photo.gps) + '\n';
-              documentContent += '  Cardinal Direction: ' + safeValue(photo.direction) + '\n';
-              documentContent += '  Equipment: ' + safeValue(photo.equipment) + '\n';
-              documentContent += '  Description: ' + safeValue(photo.description) + '\n';
-              if (photo.photoPreview) {
-                documentContent += '  Photo: [Image attached - see saved files]\n';
-              }
-              documentContent += '\n';
-            });
-            
-            // Footer
-            documentContent += '=====================================\n';
-            documentContent += 'Generated by Field Monitoring System\n';
-            documentContent += 'Report Date: ' + timestamp + '\n';
-            documentContent += '\nNote: Photos are embedded in the PDF export or can be found in the saved report data.\n';
-            
-            // Create and download the document
-            const blob = new Blob([documentContent], { type: 'text/plain;charset=utf-8' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'field_monitoring_report_' + new Date().toISOString().split('T')[0] + '.doc';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-          };
-
           const clearForm = () => {
-            if (confirm('Clear all form data? This will also remove all uploaded photos.')) {
+            if (confirm('Clear all form data? This will also remove all uploaded photos and findings reports.')) {
               setFormData({
                 monitor: '',
                 projectName: '',
@@ -664,22 +515,36 @@
                 siteConditions: '',
                 excavationConditions: '',
                 otherObservations: '',
-                fieldNumber: '',
-                fieldId: '',
-                datum: 'NAD 83 CONUS',
-                condition: '',
-                contextDescription: '',
-                approxAge: '',
-                soils: '',
-                location: '',
-                fateOfLocality: '',
+                findingsReports: [{
+                  fieldNumber: '',
+                  fieldId: '',
+                  datum: 'NAD 83 CONUS',
+                  condition: '',
+                  contextDescription: '',
+                  approxAge: '',
+                  soils: '',
+                  location: '',
+                  fateOfLocality: '',
+                  linkedPhotoIds: []
+                }],
                 utmE: '',
                 utmN: '',
                 latitude: '',
                 longitude: '',
                 elevation: '',
                 numberOfArtifacts: '',
-                photoLog: [{ photoNum: '', date: '', time: '', gps: '', direction: '', description: '', equipment: '', photoFile: null, photoPreview: null }]
+                photoLog: [{ 
+                  id: 'photo_' + Date.now(), 
+                  photoNum: '', 
+                  date: '', 
+                  time: '', 
+                  gps: '', 
+                  direction: '', 
+                  description: '', 
+                  equipment: '', 
+                  photoFile: null, 
+                  photoPreview: null 
+                }]
               });
             }
           };
@@ -713,18 +578,6 @@
                     📄 Original Form PDF
                   </button>
                   <button 
-                    onClick={generateWordDocument}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                  >
-                    📄 Word Doc
-                  </button>
-                  <button 
-                    onClick={generatePDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
-                  >
-                    📋 Detailed PDF
-                  </button>
-                  <button 
                     onClick={clearForm}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
                   >
@@ -736,7 +589,7 @@
               {savedReports.length > 0 && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                   <h3 className="font-semibold text-blue-800 mb-2">Saved Reports: {savedReports.length}</h3>
-                  <p className="text-sm text-blue-600">Export options: JSON (data), Original Form PDF (matches your template), Word Document (.doc), or Detailed PDF with embedded photos</p>
+                  <p className="text-sm text-blue-600">Multiple findings reports and photo linking now supported!</p>
                 </div>
               )}
 
@@ -999,100 +852,184 @@
                   </div>
                 </div>
 
-                {/* Findings Report */}
+                {/* Multiple Findings Reports */}
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <h2 className="text-xl font-semibold text-gray-700 mb-3">Findings Report</h2>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Field Number</label>
-                      <input
-                        type="text"
-                        value={formData.fieldNumber}
-                        onChange={(e) => handleInputChange('fieldNumber', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Field ID</label>
-                      <input
-                        type="text"
-                        value={formData.fieldId}
-                        onChange={(e) => handleInputChange('fieldId', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
-                      <input
-                        type="text"
-                        value={formData.datum}
-                        onChange={(e) => handleInputChange('datum', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                      <select
-                        value={formData.condition}
-                        onChange={(e) => handleInputChange('condition', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select...</option>
-                        {conditionOptions.map(option => (
-                          <option key={option} value={option}>{option}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Artifact/Ecofact Context Description</label>
-                      <textarea
-                        value={formData.contextDescription}
-                        onChange={(e) => handleInputChange('contextDescription', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="3"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Approximate Age</label>
-                      <input
-                        type="text"
-                        value={formData.approxAge}
-                        onChange={(e) => handleInputChange('approxAge', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Soils</label>
-                      <input
-                        type="text"
-                        value={formData.soils}
-                        onChange={(e) => handleInputChange('soils', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                      <input
-                        type="text"
-                        value={formData.location}
-                        onChange={(e) => handleInputChange('location', e.target.value)}
-                        placeholder="pads / cuts / landmarks"
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fate of Locality</label>
-                      <select
-                        value={formData.fateOfLocality}
-                        onChange={(e) => handleInputChange('fateOfLocality', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select...</option>
-                        {fateOptions.map(option => (
-                          <option key={option} value={option}>{option}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-xl font-semibold text-gray-700">Findings Reports</h2>
+                    <button
+                      type="button"
+                      onClick={addFindingsReport}
+                      className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      ➕ Add Findings Report
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {formData.findingsReports.map((finding, reportIndex) => (
+                      <div key={reportIndex} className="border border-gray-300 rounded-md p-4 bg-white">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-medium text-gray-700">Findings Report {reportIndex + 1}</span>
+                          {formData.findingsReports.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeFindingsReport(reportIndex)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              🗑️ Remove Report
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Field Number</label>
+                            <input
+                              type="text"
+                              value={finding.fieldNumber}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldNumber', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Field ID</label>
+                            <input
+                              type="text"
+                              value={finding.fieldId}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldId', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                            <input
+                              type="text"
+                              value={finding.datum}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'datum', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                            <select
+                              value={finding.condition}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'condition', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select...</option>
+                              {conditionOptions.map(option => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Approximate Age</label>
+                            <input
+                              type="text"
+                              value={finding.approxAge}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'approxAge', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Soils</label>
+                            <input
+                              type="text"
+                              value={finding.soils}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'soils', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                            <input
+                              type="text"
+                              value={finding.location}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'location', e.target.value)}
+                              placeholder="pads / cuts / landmarks"
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Fate of Locality</label>
+                            <select
+                              value={finding.fateOfLocality}
+                              onChange={(e) => handleFindingsReportChange(reportIndex, 'fateOfLocality', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select...</option>
+                              {fateOptions.map(option => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Artifact/Ecofact Context Description</label>
+                          <textarea
+                            value={finding.contextDescription}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'contextDescription', e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows="3"
+                          />
+                        </div>
+
+                        {/* Photo Linking Section */}
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="font-semibold text-blue-800 mb-2">Link Photos to This Finding</h4>
+                          {formData.photoLog.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {formData.photoLog.map((photo, photoIndex) => (
+                                <div key={photo.id} className="flex items-center space-x-3 p-2 bg-white rounded border">
+                                  <input
+                                    type="checkbox"
+                                    checked={finding.linkedPhotoIds.includes(photo.id)}
+                                    onChange={(e) => handlePhotoLinkChange(reportIndex, photo.id, e.target.checked)}
+                                    className="rounded"
+                                  />
+                                  <div className="flex-1 flex items-center space-x-2">
+                                    {photo.photoPreview && (
+                                      <img
+                                        src={photo.photoPreview}
+                                        alt={`Photo ${photoIndex + 1}`}
+                                        className="linked-photo-preview"
+                                      />
+                                    )}
+                                    <div className="text-sm">
+                                      <div className="font-medium">
+                                        {photo.photoNum || `Photo ${photoIndex + 1}`}
+                                      </div>
+                                      <div className="text-gray-600 truncate">
+                                        {photo.description || 'No description'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-blue-600 text-sm">No photos available to link. Add photos in the Photo Log section below.</p>
+                          )}
+                          
+                          {/* Display linked photos */}
+                          {finding.linkedPhotoIds.length > 0 && (
+                            <div className="mt-3">
+                              <h5 className="font-medium text-blue-700 mb-2">
+                                Linked Photos ({finding.linkedPhotoIds.length}):
+                              </h5>
+                              <div className="flex flex-wrap gap-2">
+                                {getLinkedPhotos(finding.linkedPhotoIds).map((photo, index) => (
+                                  <span key={photo.id} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                                    {photo.photoNum || `Photo ${formData.photoLog.indexOf(photo) + 1}`}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1327,42 +1264,3 @@
                             rows="3"
                             placeholder="Describe what the photo shows, any notable features, context, etc."
                           />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Photo Log Instructions */}
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-blue-800 mb-1">Photo Upload Tips:</h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• Photos are automatically resized and embedded in PDF exports</li>
-                      <li>• Supported formats: JPG, PNG, GIF, WebP</li>
-                      <li>• Photos are stored locally with your report data</li>
-                      <li>• Use "Replace" to update a photo, "Remove" to delete it</li>
-                    </ul>
-                  </div>
-                </div>
-              </form>
-              
-              {/* Footer with summary */}
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-800 mb-2">Export Options</h3>
-                <div className="text-sm text-blue-700 space-y-1">
-                  <p><strong>💾 Save Report:</strong> Saves form data locally with unique ID, timestamp, and uploaded photos</p>
-                  <p><strong>📥 Export JSON:</strong> Downloads raw data including photo information for database analysis</p>
-                  <p><strong>📄 Original Form PDF:</strong> Creates PDF matching the exact ArchaeoPaleo form layout and format</p>
-                  <p><strong>📄 Word Doc:</strong> Creates a formatted .doc file with photo references and clean layout</p>
-                  <p><strong>📋 Detailed PDF:</strong> Generates a comprehensive PDF with embedded photos and organized sections</p>
-                  <p><strong>🗑️ Clear Form:</strong> Resets all fields and removes all uploaded photos</p>
-                  <p><strong>📸 Photo Storage:</strong> Photos are stored locally and included in exports - no external server needed!</p>
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
-    </script>
-</body>
-</html>
