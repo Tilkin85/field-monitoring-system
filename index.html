@@ -353,6 +353,29 @@
             margin-top: 4px;
         }
 
+        /* Photo Upload Styles */
+        .photo-upload {
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+
+        .photo-upload:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .photo-preview {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -474,23 +497,29 @@
                     gps: '',
                     direction: '',
                     description: '',
-                    equipment: ''
+                    equipment: '',
+                    photoFile: null,
+                    photoPreview: null
                 }]
             });
 
             // Map initialization
             useEffect(() => {
-                if (mapRef.current && !leafletMapRef.current) {
-                    // Initialize Leaflet map
-                    leafletMapRef.current = L.map(mapRef.current).setView(formData.mapData.center, formData.mapData.zoom);
+                if (mapRef.current && !leafletMapRef.current && typeof L !== 'undefined') {
+                    try {
+                        // Initialize Leaflet map
+                        leafletMapRef.current = L.map(mapRef.current).setView(formData.mapData.center, formData.mapData.zoom);
 
-                    // Add tile layer
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(leafletMapRef.current);
+                        // Add tile layer
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(leafletMapRef.current);
 
-                    // Add click handler
-                    leafletMapRef.current.on('click', handleMapClick);
+                        // Add click handler
+                        leafletMapRef.current.on('click', handleMapClick);
+                    } catch (error) {
+                        console.error('Map initialization error:', error);
+                    }
                 }
 
                 return () => {
@@ -523,25 +552,6 @@
                                     <small>Lat: ${marker.lat.toFixed(6)}, Lng: ${marker.lng.toFixed(6)}</small>
                                 </div>
                             `);
-                    });
-
-                    // Add polygons (areas)
-                    formData.mapData.polygons.forEach(polygon => {
-                        L.polygon(polygon.points, {
-                            color: polygon.color || '#3388ff',
-                            fillColor: polygon.fillColor || '#3388ff',
-                            fillOpacity: 0.2
-                        }).addTo(leafletMapRef.current)
-                          .bindPopup(`<strong>Area:</strong> ${polygon.description}`);
-                    });
-
-                    // Add polylines (paths)
-                    formData.mapData.polylines.forEach(polyline => {
-                        L.polyline(polyline.points, {
-                            color: polyline.color || '#ff3333',
-                            weight: 3
-                        }).addTo(leafletMapRef.current)
-                          .bindPopup(`<strong>Path:</strong> ${polyline.description}`);
                     });
                 }
             }, [formData.mapData]);
@@ -645,6 +655,21 @@
                 setFormData(prev => ({ ...prev, photoLog: newPhotoLog }));
             };
 
+            const handlePhotoUpload = (index, file) => {
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const newPhotoLog = [...formData.photoLog];
+                        newPhotoLog[index].photoFile = file;
+                        newPhotoLog[index].photoPreview = e.target.result;
+                        setFormData(prev => ({ ...prev, photoLog: newPhotoLog }));
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('Please select a valid image file');
+                }
+            };
+
             const addPhotoEntry = () => {
                 setFormData(prev => ({
                     ...prev,
@@ -656,7 +681,9 @@
                         gps: '',
                         direction: '',
                         description: '',
-                        equipment: ''
+                        equipment: '',
+                        photoFile: null,
+                        photoPreview: null
                     }]
                 }));
             };
@@ -668,22 +695,27 @@
                 }));
             };
 
-            // Export functions (simplified for demo)
+            // Export functions
             const exportToJSON = () => {
-                const reportData = {
-                    id: 'REPORT_' + Date.now(),
-                    timestamp: new Date().toISOString(),
-                    data: formData
-                };
-                
-                const dataStr = JSON.stringify(reportData, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.json`;
-                
-                const link = document.createElement('a');
-                link.href = dataUri;
-                link.download = fileName;
-                link.click();
+                try {
+                    const reportData = {
+                        id: 'REPORT_' + Date.now(),
+                        timestamp: new Date().toISOString(),
+                        data: formData
+                    };
+                    
+                    const dataStr = JSON.stringify(reportData, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.json`;
+                    
+                    const link = document.createElement('a');
+                    link.href = dataUri;
+                    link.download = fileName;
+                    link.click();
+                } catch (error) {
+                    console.error('JSON Export Error:', error);
+                    alert('Error generating JSON file');
+                }
             };
 
             const clearForm = () => {
@@ -706,7 +738,8 @@
                         },
                         photoLog: [{
                             id: 'photo_' + Date.now(), photoNum: '', date: '', time: '',
-                            gps: '', direction: '', description: '', equipment: ''
+                            gps: '', direction: '', description: '', equipment: '',
+                            photoFile: null, photoPreview: null
                         }]
                     });
                 }
@@ -735,9 +768,9 @@
                     <div className="alert alert-info">
                         <h3 className="mb-10">🗺️ Interactive Mapping Features</h3>
                         <p><strong>Click on map:</strong> Add markers for sites, artifacts, fossils, hazards, and samples</p>
-                        <p><strong>Markers:</strong> Different colors represent different types of findings</p>
-                        <p><strong>Coordinates:</strong> Enter GPS coordinates below and click "Center Map" to navigate</p>
-                        <p className="mt-20">All map data is included in your exported reports for comprehensive documentation.</p>
+                        <p><strong>Photo Upload:</strong> Click the upload area in each photo log entry to attach images</p>
+                        <p><strong>GPS Integration:</strong> Enter coordinates and click "Center Map" to navigate</p>
+                        <p className="mt-20">All map data and photos are included in your exported reports for comprehensive documentation.</p>
                     </div>
 
                     {/* Interactive Map Section */}
@@ -859,6 +892,26 @@
                     <div className="form-section">
                         <h2 className="section-title">📋 Basic Information</h2>
                         <div className="form-grid grid-2">
+                            <div className="form-group">
+                                <label className="form-label">Monitor</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.monitor}
+                                    onChange={(e) => handleInputChange('monitor', e.target.value)}
+                                    placeholder="Enter monitor name"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Project Name</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.projectName}
+                                    onChange={(e) => handleInputChange('projectName', e.target.value)}
+                                    placeholder="Enter project name"
+                                />
+                            </div>
                             <div className="form-group">
                                 <label className="form-label">Date</label>
                                 <input
@@ -1154,7 +1207,7 @@
                             </button>
                         </div>
                         {formData.photoLog.map((photo, index) => (
-                            <div key={index} className="card">
+                            <div key={photo.id} className="card">
                                 <div className="card-header">
                                     <h3 className="card-title">Photo Entry {index + 1}</h3>
                                     {formData.photoLog.length > 1 && (
@@ -1184,7 +1237,7 @@
                                                 input.click();
                                             }}
                                         >
-                                            <div>📸</div>
+                                            <div style={{fontSize: '48px', marginBottom: '10px'}}>📸</div>
                                             <p><strong>Click to upload photo</strong></p>
                                             <p style={{color: '#718096', fontSize: '14px'}}>JPG, PNG, GIF up to 10MB</p>
                                         </div>
@@ -1226,6 +1279,7 @@
                                 </div>
 
                                 {/* Photo Details */}
+                                <div className="form-grid grid-3 mb-15">
                                     <div className="form-group">
                                         <label className="form-label">Photo Number</label>
                                         <input
@@ -1309,11 +1363,12 @@
 
                     {/* Footer */}
                     <div className="alert alert-info">
-                        <h3 className="mb-10">🎯 Map Integration Features</h3>
+                        <h3 className="mb-10">🎯 Complete Field Documentation</h3>
                         <p><strong>Interactive Mapping:</strong> Click anywhere on the map to add location markers for findings</p>
-                        <p><strong>GPS Integration:</strong> Enter coordinates in the GPS section and use "Center Map" to navigate</p>
-                        <p><strong>Comprehensive Export:</strong> All map data, markers, and coordinates are included in JSON exports</p>
-                        <p className="mt-20">Your field monitoring data now includes precise spatial information for enhanced analysis and reporting.</p>
+                        <p><strong>Photo Documentation:</strong> Upload photos with detailed metadata and GPS coordinates</p>
+                        <p><strong>GPS Integration:</strong> Enter coordinates and use "Center Map" to navigate to specific locations</p>
+                        <p><strong>Comprehensive Export:</strong> All map data, photos, and field observations included in JSON exports</p>
+                        <p className="mt-20">Your field monitoring system now provides complete spatial and visual documentation for professional archaeological and geological reporting.</p>
                     </div>
                 </div>
             );
@@ -1322,24 +1377,4 @@
         ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
     </script>
 </body>
-</html>="form-label">Monitor</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.monitor}
-                                    onChange={(e) => handleInputChange('monitor', e.target.value)}
-                                    placeholder="Enter monitor name"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Project Name</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.projectName}
-                                    onChange={(e) => handleInputChange('projectName', e.target.value)}
-                                    placeholder="Enter project name"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className
+</html>
