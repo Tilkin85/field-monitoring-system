@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Field Monitoring System</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <style>
@@ -20,6 +21,7 @@
             background-color: #f3f4f6;
             line-height: 1.6;
             color: #374151;
+            padding: 20px;
         }
 
         .container {
@@ -145,6 +147,15 @@
             .grid-cols-3,
             .grid-cols-4 {
                 grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .button-group {
+                justify-content: center;
             }
         }
 
@@ -373,28 +384,24 @@
             white-space: nowrap;
         }
 
-        @media (max-width: 640px) {
-            .container {
-                margin: 0;
-                border-radius: 0;
-            }
+        .flex-1 {
+            flex: 1;
+        }
 
-            .header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .button-group {
-                justify-content: center;
-            }
+        .photo-link-section {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 0.5rem;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
     
-    <script>
-        const { useState, useRef, createElement: h } = React;
+    <script type="text/babel">
+        const { useState } = React;
 
         const FieldMonitoringApp = () => {
           const [formData, setFormData] = useState({
@@ -632,186 +639,6 @@
             linkElement.click();
           };
 
-          const safeValue = (value) => {
-            return value || '';
-          };
-
-          const generateOriginalFormPDF = () => {
-            try {
-              const { jsPDF } = window.jspdf;
-              const doc = new jsPDF();
-              
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(14);
-              
-              doc.text('ArchaeoPaleo Resource Management Inc.', 20, 20);
-              doc.setFontSize(12);
-              doc.text('DAILY ARCHAEO/PALEO FIELD SUMMARY', 20, 30);
-              
-              doc.text('Monitor: ' + safeValue(formData.monitor), 130, 30);
-              
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(10);
-              
-              doc.text('Project Name: ' + safeValue(formData.projectName), 20, 45);
-              doc.text('Date: ' + safeValue(formData.date), 150, 45);
-              
-              doc.text('Project Number: ' + safeValue(formData.projectNumber), 20, 55);
-              doc.text('Total Hrs: ' + safeValue(formData.totalHrs), 80, 55);
-              doc.text('Total Mi: ' + safeValue(formData.totalMi), 120, 55);
-              
-              doc.text('Project Location: ' + safeValue(formData.location), 20, 65);
-              doc.text('Time in: ' + safeValue(formData.timeIn), 130, 65);
-              
-              doc.text('Project areas monitored (number & key on weekly map):', 20, 75);
-              doc.text('Time out: ' + safeValue(formData.timeOut), 130, 75);
-              doc.text(safeValue(formData.projectAreas), 20, 85);
-              
-              let yPos = 95;
-              
-              doc.text('Fossils:', 20, yPos);
-              doc.text(safeValue(formData.fossils), 20, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Prehistoric artifacts/ecofacts:', 20, yPos);
-              doc.text(safeValue(formData.prehistoricArtifacts), 20, yPos + 10);
-              doc.text("con't Y N", 180, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Historic artifacts/ecofacts:', 20, yPos);
-              doc.text(safeValue(formData.historicArtifacts), 20, yPos + 10);
-              doc.text("con't Y N", 180, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Architectural features:', 20, yPos);
-              doc.text(safeValue(formData.architecturalFeatures), 20, yPos + 10);
-              doc.text("con't Y N", 180, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Stratigraphy: (turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional', 20, yPos);
-              doc.text('gradational / faults / slides / photos)', 20, yPos + 8);
-              doc.text(safeValue(formData.stratigraphy), 20, yPos + 18);
-              yPos += 35;
-              
-              doc.text('Lithology: Grain size: (' + safeValue(formData.grainSize) + ') Color: ' + safeValue(formData.color) + 
-                      ' Texture: ' + safeValue(formData.texture) + ' Sorting: ' + safeValue(formData.sorting), 20, yPos);
-              yPos += 15;
-              
-              const sedsText = formData.seds.length > 0 ? formData.seds.join(' ') : '';
-              doc.text('Sed: ( mud/s silt/s sand/s lime/s shale conglomerate breccia concretions ) ' + sedsText, 20, yPos);
-              doc.text("con't Y N", 180, yPos);
-              yPos += 15;
-              
-              const minText = formData.mineralization.length > 0 ? formData.mineralization.join(' / ') : '';
-              doc.text('Mineralization: caliche / siliceous / paleosol / alluvium / lag deposits / ' + minText, 20, yPos);
-              yPos += 20;
-              
-              doc.text('Site conditions & personnel: ( non-compliance / hazards / weather / safety concerns / visitors)', 20, yPos);
-              doc.text(safeValue(formData.siteConditions), 20, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Excavation conditions: (status / equipment / cuts / access)', 20, yPos);
-              doc.text(safeValue(formData.excavationConditions), 20, yPos + 10);
-              yPos += 25;
-              
-              doc.text('Other Observations & Comments:', 20, yPos);
-              doc.text(safeValue(formData.otherObservations), 20, yPos + 10);
-              doc.text("con't Y N", 180, yPos + 10);
-              yPos += 25;
-              
-              if (yPos > 240) {
-                doc.addPage();
-                yPos = 20;
-              }
-              
-              formData.findingsReports.forEach((finding, index) => {
-                if (index > 0) {
-                  doc.addPage();
-                  yPos = 20;
-                }
-                
-                doc.text('FINDINGS REPORT ' + (index + 1), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Field Number: ' + safeValue(finding.fieldNumber) + 
-                        ' Field ID: ' + safeValue(finding.fieldId) + 
-                        ' Datum: ' + safeValue(finding.datum), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Condition: ( poor / fair / good / excellent / damaged / partial / whole ) ' + safeValue(finding.condition), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Arti/eco-fact context description: ' + safeValue(finding.contextDescription) + 
-                        ' Approx. age: ' + safeValue(finding.approxAge), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Soils: ' + safeValue(finding.soils), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Location: (pads / cuts /landmarks) ' + safeValue(finding.location), 20, yPos);
-                yPos += 15;
-                
-                doc.text('Fate of Locality: (accessible / buried / graded away ) ' + safeValue(finding.fateOfLocality), 20, yPos);
-                yPos += 15;
-                
-                if (finding.linkedPhotoIds.length > 0) {
-                  const linkedPhotos = getLinkedPhotos(finding.linkedPhotoIds);
-                  doc.text('Linked Photos: ' + linkedPhotos.map(p => p.photoNum || 'Photo ' + (formData.photoLog.indexOf(p) + 1)).join(', '), 20, yPos);
-                  yPos += 15;
-                }
-              });
-              
-              doc.text('Coordinates: UTM ' + safeValue(formData.utmE) + 'E/' + safeValue(formData.utmN) + 'N// ' +
-                      'Lat. N' + safeValue(formData.latitude) + ' Long.W' + safeValue(formData.longitude) + 
-                      ' Elev' + safeValue(formData.elevation), 20, yPos);
-              yPos += 15;
-              
-              doc.text('Number of arti/eco-facts: specimens / paperbags / boxes / samples / bags of matrix: ' + 
-                      safeValue(formData.numberOfArtifacts), 20, yPos);
-              
-              if (formData.photoLog.some(photo => photo.photoNum || photo.description)) {
-                doc.addPage();
-                yPos = 20;
-                
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.text('PHOTO LOG', 20, yPos);
-                yPos += 15;
-                
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
-                
-                formData.photoLog.forEach((photo, index) => {
-                  if (photo.photoNum || photo.description) {
-                    doc.text('Photo #: ' + safeValue(photo.photoNum) + 
-                            ' Date: ' + safeValue(photo.date) + 
-                            ' Time: ' + safeValue(photo.time), 20, yPos);
-                    yPos += 10;
-                    
-                    doc.text('GPS: ' + safeValue(photo.gps) + 
-                            ' Direction: ' + safeValue(photo.direction) + 
-                            ' Equipment: ' + safeValue(photo.equipment), 20, yPos);
-                    yPos += 10;
-                    
-                    doc.text('Description: ' + safeValue(photo.description), 20, yPos);
-                    yPos += 15;
-                    
-                    if (yPos > 250) {
-                      doc.addPage();
-                      yPos = 20;
-                    }
-                  }
-                });
-              }
-              
-              doc.save('ArchaeoPaleo_Field_Summary_' + new Date().toISOString().split('T')[0] + '.pdf');
-              
-            } catch (error) {
-              alert('PDF generation failed: ' + error.message);
-              console.error('PDF Error:', error);
-            }
-          };
-
           const clearForm = () => {
             if (confirm('Clear all form data? This will also remove all uploaded photos and findings reports.')) {
               setFormData({
@@ -869,3 +696,721 @@
                   photoPreview: null 
                 }]
               });
+            }
+          };
+
+          const sedimentOptions = ['mud/s', 'silt/s', 'sand/s', 'lime/s', 'shale', 'conglomerate', 'breccia', 'concretions'];
+          const mineralizationOptions = ['caliche', 'siliceous', 'paleosol', 'alluvium', 'lag deposits'];
+          const conditionOptions = ['poor', 'fair', 'good', 'excellent', 'damaged', 'partial', 'whole'];
+          const fateOptions = ['accessible', 'buried', 'graded away'];
+
+          return (
+            <div className="container">
+              {/* Header */}
+              <div className="header">
+                <h1>Field Monitoring Data Entry</h1>
+                <div className="button-group">
+                  <button className="btn btn-primary" onClick={saveReport}>
+                    💾 Save Report
+                  </button>
+                  <button className="btn btn-success" onClick={exportToJSON}>
+                    📥 Export JSON
+                  </button>
+                  <button className="btn btn-secondary" onClick={clearForm}>
+                    🗑️ Clear Form
+                  </button>
+                </div>
+              </div>
+
+              {/* Saved Reports Alert */}
+              {savedReports.length > 0 && (
+                <div className="alert alert-info">
+                  <h3 className="mb-2">Saved Reports: {savedReports.length}</h3>
+                  <p className="text-sm">Multiple findings reports and photo linking now supported!</p>
+                </div>
+              )}
+
+              {/* Basic Information Section */}
+              <div className="section">
+                <h2>Basic Information</h2>
+                <div className="grid grid-cols-2">
+                  <div className="form-group">
+                    <label className="form-label">Monitor</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.monitor}
+                      onChange={(e) => handleInputChange('monitor', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Project Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.projectName}
+                      onChange={(e) => handleInputChange('projectName', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Project Number</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.projectNumber}
+                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Total Hours</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.totalHrs}
+                      onChange={(e) => handleInputChange('totalHrs', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Total Miles</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.totalMi}
+                      onChange={(e) => handleInputChange('totalMi', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Time In</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={formData.timeIn}
+                      onChange={(e) => handleInputChange('timeIn', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Time Out</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={formData.timeOut}
+                      onChange={(e) => handleInputChange('timeOut', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Field Observations Section */}
+              <div className="section">
+                <h2>Field Observations</h2>
+                <div className="form-group mb-4">
+                  <label className="form-label">Project Areas Monitored</label>
+                  <textarea
+                    className="form-textarea"
+                    value={formData.projectAreas}
+                    onChange={(e) => handleInputChange('projectAreas', e.target.value)}
+                    rows="2"
+                  />
+                </div>
+                <div className="grid grid-cols-2">
+                  <div className="form-group">
+                    <label className="form-label">Fossils</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.fossils}
+                      onChange={(e) => handleInputChange('fossils', e.target.value)}
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Prehistoric Artifacts/Ecofacts</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.prehistoricArtifacts}
+                      onChange={(e) => handleInputChange('prehistoricArtifacts', e.target.value)}
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Historic Artifacts/Ecofacts</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.historicArtifacts}
+                      onChange={(e) => handleInputChange('historicArtifacts', e.target.value)}
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Architectural Features</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.architecturalFeatures}
+                      onChange={(e) => handleInputChange('architecturalFeatures', e.target.value)}
+                      rows="3"
+                    />
+                  </div>
+                </div>
+                <div className="form-group mt-4">
+                  <label className="form-label">Stratigraphy</label>
+                  <textarea
+                    className="form-textarea"
+                    value={formData.stratigraphy}
+                    onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
+                    placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
+                    rows="3"
+                  />
+                </div>
+              </div>
+
+              {/* Lithology Section */}
+              <div className="section">
+                <h2>Lithology</h2>
+                <div className="grid grid-cols-2 mb-4">
+                  <div className="form-group">
+                    <label className="form-label">Grain Size</label>
+                    <select
+                      className="form-select"
+                      value={formData.grainSize}
+                      onChange={(e) => handleInputChange('grainSize', e.target.value)}
+                    >
+                      <option value="">Select...</option>
+                      <option value="F">F (Fine)</option>
+                      <option value="M">M (Medium)</option>
+                      <option value="C">C (Coarse)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Color</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.color}
+                      onChange={(e) => handleInputChange('color', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Texture</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.texture}
+                      onChange={(e) => handleInputChange('texture', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Sorting</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.sorting}
+                      onChange={(e) => handleInputChange('sorting', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="form-label mb-2">Sediments</label>
+                  <div className="checkbox-group">
+                    {sedimentOptions.map(option => (
+                      <div key={option} className="checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={formData.seds.includes(option)}
+                          onChange={() => handleCheckboxChange('seds', option)}
+                        />
+                        <span className="text-sm">{option}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Site Conditions Section */}
+              <div className="section">
+                <h2>Site & Excavation Conditions</h2>
+                <div className="grid grid-cols-2">
+                  <div className="form-group">
+                    <label className="form-label">Site Conditions & Personnel</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.siteConditions}
+                      onChange={(e) => handleInputChange('siteConditions', e.target.value)}
+                      placeholder="non-compliance / hazards / weather / safety concerns / visitors"
+                      rows="3"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Excavation Conditions</label>
+                    <textarea
+                      className="form-textarea"
+                      value={formData.excavationConditions}
+                      onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
+                      placeholder="status / equipment / cuts / access"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+                <div className="form-group mt-4">
+                  <label className="form-label">Other Observations & Comments</label>
+                  <textarea
+                    className="form-textarea"
+                    value={formData.otherObservations}
+                    onChange={(e) => handleInputChange('otherObservations', e.target.value)}
+                    rows="4"
+                  />
+                </div>
+              </div>
+
+              {/* Multiple Findings Reports Section */}
+              <div className="section">
+                <div className="flex justify-between items-center mb-3">
+                  <h2>Findings Reports</h2>
+                  <button
+                    className="btn btn-success btn-small"
+                    onClick={addFindingsReport}
+                  >
+                    ➕ Add Findings Report
+                  </button>
+                </div>
+                <div>
+                  {formData.findingsReports.map((finding, reportIndex) => (
+                    <div key={reportIndex} className="card">
+                      <div className="card-header">
+                        <span>Findings Report {reportIndex + 1}</span>
+                        {formData.findingsReports.length > 1 && (
+                          <button
+                            className="btn btn-danger btn-small"
+                            onClick={() => removeFindingsReport(reportIndex)}
+                          >
+                            🗑️ Remove Report
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 mb-4">
+                        <div className="form-group">
+                          <label className="form-label">Field Number</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.fieldNumber}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldNumber', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Field ID</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.fieldId}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldId', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Datum</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.datum}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'datum', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Condition</label>
+                          <select
+                            className="form-select"
+                            value={finding.condition}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'condition', e.target.value)}
+                          >
+                            <option value="">Select...</option>
+                            {conditionOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Approximate Age</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.approxAge}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'approxAge', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Soils</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.soils}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'soils', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Location</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={finding.location}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'location', e.target.value)}
+                            placeholder="pads / cuts / landmarks"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Fate of Locality</label>
+                          <select
+                            className="form-select"
+                            value={finding.fateOfLocality}
+                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fateOfLocality', e.target.value)}
+                          >
+                            <option value="">Select...</option>
+                            {fateOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="form-group mb-4">
+                        <label className="form-label">Artifact/Ecofact Context Description</label>
+                        <textarea
+                          className="form-textarea"
+                          value={finding.contextDescription}
+                          onChange={(e) => handleFindingsReportChange(reportIndex, 'contextDescription', e.target.value)}
+                          rows="3"
+                        />
+                      </div>
+                      {/* Photo Linking Section */}
+                      <div className="photo-link-section">
+                        <h4 className="text-blue-800 mb-2">Link Photos to This Finding</h4>
+                        {formData.photoLog.length > 0 ? (
+                          <div className="grid grid-cols-2">
+                            {formData.photoLog.map((photo, photoIndex) => (
+                              <div key={photo.id} className="flex items-center gap-3 p-2 bg-white rounded border mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={finding.linkedPhotoIds.includes(photo.id)}
+                                  onChange={(e) => handlePhotoLinkChange(reportIndex, photo.id, e.target.checked)}
+                                />
+                                <div className="flex items-center gap-2 flex-1">
+                                  {photo.photoPreview && (
+                                    <img
+                                      src={photo.photoPreview}
+                                      alt={`Photo ${photoIndex + 1}`}
+                                      className="linked-photo-preview"
+                                    />
+                                  )}
+                                  <div className="text-sm">
+                                    <div className="font-medium">
+                                      {photo.photoNum || `Photo ${photoIndex + 1}`}
+                                    </div>
+                                    <div className="text-gray-600 truncate">
+                                      {photo.description || 'No description'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-blue-600 text-sm">
+                            No photos available to link. Add photos in the Photo Log section below.
+                          </p>
+                        )}
+                        {/* Display linked photos */}
+                        {finding.linkedPhotoIds.length > 0 && (
+                          <div className="mt-3">
+                            <h5 className="text-blue-700 mb-2">
+                              Linked Photos ({finding.linkedPhotoIds.length}):
+                            </h5>
+                            <div className="flex flex-wrap gap-2">
+                              {getLinkedPhotos(finding.linkedPhotoIds).map((photo) => (
+                                <span key={photo.id} className="badge">
+                                  {photo.photoNum || `Photo ${formData.photoLog.indexOf(photo) + 1}`}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Coordinates Section */}
+              <div className="section">
+                <h2>Coordinates</h2>
+                <div className="grid grid-cols-3">
+                  <div className="form-group">
+                    <label className="form-label">UTM Easting</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.utmE}
+                      onChange={(e) => handleInputChange('utmE', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">UTM Northing</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.utmN}
+                      onChange={(e) => handleInputChange('utmN', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Elevation</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.elevation}
+                      onChange={(e) => handleInputChange('elevation', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Latitude N</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.latitude}
+                      onChange={(e) => handleInputChange('latitude', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Longitude W</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.longitude}
+                      onChange={(e) => handleInputChange('longitude', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Number of Artifacts/Ecofacts</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.numberOfArtifacts}
+                      onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
+                      placeholder="specimens / paperbags / boxes / samples"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo Log Section */}
+              <div className="section">
+                <div className="flex justify-between items-center mb-3">
+                  <h2>Photo Log</h2>
+                  <button
+                    className="btn btn-primary btn-small"
+                    onClick={addPhotoEntry}
+                  >
+                    ➕ Add Photo Entry
+                  </button>
+                </div>
+                <div>
+                  {formData.photoLog.map((photo, index) => (
+                    <div key={index} className="card">
+                      <div className="card-header">
+                        <span>Photo Entry {index + 1}</span>
+                        {formData.photoLog.length > 1 && (
+                          <button
+                            className="btn btn-danger btn-small"
+                            onClick={() => removePhotoEntry(index)}
+                          >
+                            🗑️ Remove Entry
+                          </button>
+                        )}
+                      </div>
+                      {/* Photo Upload Section */}
+                      <div className="mb-4">
+                        <label className="form-label mb-2">Upload Photo</label>
+                        {!photo.photoPreview ? (
+                          <div
+                            className="photo-upload-area"
+                            onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.accept = 'image/*';
+                              input.onchange = (e) => {
+                                if (e.target.files[0]) {
+                                  handlePhotoUpload(index, e.target.files[0]);
+                                }
+                              };
+                              input.click();
+                            }}
+                          >
+                            <div className="text-gray-500">
+                              <div className="text-center" style={{fontSize: '3rem'}}>📸</div>
+                              <p className="text-sm">Click to upload photo</p>
+                              <p className="text-xs text-gray-400 mt-1">JPG, PNG, GIF up to 10MB</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={photo.photoPreview}
+                              alt={`Photo ${index + 1}`}
+                              className="photo-preview"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-600 mb-2">Photo uploaded successfully</p>
+                              <div className="flex gap-2">
+                                <button
+                                  className="btn btn-primary btn-small"
+                                  onClick={() => {
+                                    const input = document.createElement('input');
+                                    input.type = 'file';
+                                    input.accept = 'image/*';
+                                    input.onchange = (e) => {
+                                      if (e.target.files[0]) {
+                                        handlePhotoUpload(index, e.target.files[0]);
+                                      }
+                                    };
+                                    input.click();
+                                  }}
+                                >
+                                  📷 Replace
+                                </button>
+                                <button
+                                  className="btn btn-danger btn-small"
+                                  onClick={() => removePhoto(index)}
+                                >
+                                  🗑️ Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Photo Details */}
+                      <div className="grid grid-cols-3 mb-3">
+                        <div className="form-group">
+                          <label className="form-label">Photo #</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={photo.photoNum}
+                            onChange={(e) => handlePhotoLogChange(index, 'photoNum', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Date</label>
+                          <input
+                            type="date"
+                            className="form-input"
+                            value={photo.date}
+                            onChange={(e) => handlePhotoLogChange(index, 'date', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Time</label>
+                          <input
+                            type="time"
+                            className="form-input"
+                            value={photo.time}
+                            onChange={(e) => handlePhotoLogChange(index, 'time', e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">GPS Coordinates</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={photo.gps}
+                            onChange={(e) => handlePhotoLogChange(index, 'gps', e.target.value)}
+                            placeholder="e.g., 34.0522°N, 118.2437°W"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Cardinal Direction</label>
+                          <select
+                            className="form-select"
+                            value={photo.direction}
+                            onChange={(e) => handlePhotoLogChange(index, 'direction', e.target.value)}
+                          >
+                            <option value="">Select...</option>
+                            <option value="N">North</option>
+                            <option value="NE">Northeast</option>
+                            <option value="E">East</option>
+                            <option value="SE">Southeast</option>
+                            <option value="S">South</option>
+                            <option value="SW">Southwest</option>
+                            <option value="W">West</option>
+                            <option value="NW">Northwest</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Equipment Used</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={photo.equipment}
+                            onChange={(e) => handlePhotoLogChange(index, 'equipment', e.target.value)}
+                            placeholder="Camera, lens, etc."
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group mt-3">
+                        <label className="form-label">Description of Subject</label>
+                        <textarea
+                          className="form-textarea"
+                          value={photo.description}
+                          onChange={(e) => handlePhotoLogChange(index, 'description', e.target.value)}
+                          rows="3"
+                          placeholder="Describe what the photo shows, any notable features, context, etc."
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer with summary */}
+              <div className="alert alert-info mt-4">
+                <h3 className="text-blue-800 mb-2">How to Use This System</h3>
+                <div className="text-sm text-blue-700">
+                  <p className="mb-2">
+                    <strong>Save Report:</strong> Click to save the current form data. Each report gets a unique ID and timestamp.
+                  </p>
+                  <p className="mb-2">
+                    <strong>Export Data:</strong> Downloads all saved reports as a JSON file that you can import into spreadsheets or databases for analysis.
+                  </p>
+                  <p className="mb-2">
+                    <strong>Clear Form:</strong> Resets all fields to start a new entry.
+                  </p>
+                  <p>Data is stored locally in your browser session. Export regularly to preserve your work!</p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
+    </script>
+</body>
+</html>>{option}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="form-label mb-2">Mineralization</label>
+                  <div className="checkbox-group">
+                    {mineralizationOptions.map(option => (
+                      <div key={option} className="checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={formData.mineralization.includes(option)}
+                          onChange={() => handleCheckboxChange('mineralization', option)}
+                        />
+                        <span className="text-sm"
