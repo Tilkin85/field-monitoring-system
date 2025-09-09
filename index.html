@@ -1110,6 +1110,55 @@
                                     )}
                                 </div>
                             </div>
+
+                            {/* General Field Observations Photos */}
+                            <div className="form-group">
+                                <label className="form-label">Additional Field Observation Photos</label>
+                                <div className="field-photo-section">
+                                    <div 
+                                        className="field-photo-upload"
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*';
+                                            input.multiple = true;
+                                            input.onchange = (e) => {
+                                                Array.from(e.target.files).forEach(file => {
+                                                    handleFieldPhotoUpload('general', file);
+                                                });
+                                            };
+                                            input.click();
+                                        }}
+                                    >
+                                        <div style={{fontSize: '32px', marginBottom: '10px'}}>📸</div>
+                                        <div><strong>Click to upload additional field photos</strong></div>
+                                        <small>Add any other relevant field observation images</small>
+                                        <br />
+                                        <small style={{color: '#718096'}}>You can select multiple files at once</small>
+                                    </div>
+                                    {formData.fieldPhotos.general.length > 0 && (
+                                        <div>
+                                            <h4 style={{margin: '15px 0 10px 0', color: '#2d3748', fontSize: '16px'}}>
+                                                General Field Photos ({formData.fieldPhotos.general.length})
+                                            </h4>
+                                            <div className="field-photos-grid">
+                                                {formData.fieldPhotos.general.map(photo => (
+                                                    <div key={photo.id} className="field-photo-item">
+                                                        <img src={photo.preview} alt="General field observation" />
+                                                        <button 
+                                                            className="field-photo-remove"
+                                                            onClick={() => removeFieldPhoto('general', photo.id)}
+                                                            title="Remove photo"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
