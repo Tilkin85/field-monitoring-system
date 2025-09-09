@@ -668,6 +668,7 @@
                                     <div class="field"><span class="label">Field ID:</span> ${finding.fieldId || 'N/A'}</div>
                                     <div class="field"><span class="label">Condition:</span> ${finding.condition || 'N/A'}</div>
                                     ${finding.contextDescription ? `<div class="field"><span class="label">Context:</span><br>${finding.contextDescription.replace(/\n/g, '<br>')}</div>` : ''}
+                                    ${finding.linkedPhotoIds.length > 0 ? `<div class="field"><span class="label">Linked Photos:</span> ${getLinkedPhotos(finding.linkedPhotoIds).map(photo => photo.photoNum || `Photo ${formData.photoLog.indexOf(photo) + 1}`).join(', ')}</div>` : ''}
                                 `).join('')}
                             </div>
 
