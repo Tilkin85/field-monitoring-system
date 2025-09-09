@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Field Monitoring System with Map</title>
+    <title>Field Monitoring System</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <style>
         * {
             margin: 0;
@@ -45,11 +44,6 @@
             margin-bottom: 10px;
         }
 
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
         .export-buttons {
             display: flex;
             gap: 15px;
@@ -68,22 +62,11 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            text-decoration: none;
         }
 
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .btn-pdf {
-            background: #e53e3e;
-            color: white;
-        }
-
-        .btn-word {
-            background: #2b6cb0;
-            color: white;
         }
 
         .btn-json {
@@ -362,6 +345,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             background: #f7fafc;
+            margin-top: 10px;
         }
 
         .photo-upload:hover {
@@ -374,6 +358,65 @@
             max-height: 150px;
             border-radius: 8px;
             margin: 10px 0;
+        }
+
+        .field-photo-section {
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .field-photo-upload {
+            border: 2px dashed #cbd5e0;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            margin-bottom: 15px;
+        }
+
+        .field-photo-upload:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .field-photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .field-photo-item {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .field-photo-item img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+        }
+
+        .field-photo-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .text-center {
@@ -458,6 +501,11 @@
                 architecturalFeatures: '',
                 stratigraphy: '',
                 
+                // Field Observation Photos
+                fieldPhotos: {
+                    general: []
+                },
+                
                 // Lithology
                 grainSize: '',
                 color: '',
@@ -481,11 +529,9 @@
                 
                 // Map Data
                 mapData: {
-                    center: [34.0522, -118.2437], // Default to Los Angeles
+                    center: [34.0522, -118.2437],
                     zoom: 10,
-                    markers: [],
-                    polygons: [],
-                    polylines: []
+                    markers: []
                 },
                 
                 // Photo Log
@@ -507,15 +553,12 @@
             useEffect(() => {
                 if (mapRef.current && !leafletMapRef.current && typeof L !== 'undefined') {
                     try {
-                        // Initialize Leaflet map
                         leafletMapRef.current = L.map(mapRef.current).setView(formData.mapData.center, formData.mapData.zoom);
 
-                        // Add tile layer
                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                             attribution: '© OpenStreetMap contributors'
                         }).addTo(leafletMapRef.current);
 
-                        // Add click handler
                         leafletMapRef.current.on('click', handleMapClick);
                     } catch (error) {
                         console.error('Map initialization error:', error);
@@ -532,10 +575,10 @@
 
             // Update map markers when data changes
             useEffect(() => {
-                if (leafletMapRef.current) {
+                if (leafletMapRef.current && formData.mapData.markers) {
                     // Clear existing markers
                     leafletMapRef.current.eachLayer((layer) => {
-                        if (layer instanceof L.Marker || layer instanceof L.Polygon || layer instanceof L.Polyline) {
+                        if (layer instanceof L.Marker) {
                             leafletMapRef.current.removeLayer(layer);
                         }
                     });
@@ -543,7 +586,7 @@
                     // Add markers
                     formData.mapData.markers.forEach(marker => {
                         const markerIcon = getMarkerIcon(marker.type);
-                        const leafletMarker = L.marker([marker.lat, marker.lng], { icon: markerIcon })
+                        L.marker([marker.lat, marker.lng], { icon: markerIcon })
                             .addTo(leafletMapRef.current)
                             .bindPopup(`
                                 <div>
@@ -670,6 +713,40 @@
                 }
             };
 
+            const handleFieldPhotoUpload = (file) => {
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const newPhoto = {
+                            id: 'fieldPhoto_' + Date.now(),
+                            file: file,
+                            preview: e.target.result,
+                            timestamp: new Date().toISOString()
+                        };
+                        setFormData(prev => ({
+                            ...prev,
+                            fieldPhotos: {
+                                ...prev.fieldPhotos,
+                                general: [...prev.fieldPhotos.general, newPhoto]
+                            }
+                        }));
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('Please select a valid image file');
+                }
+            };
+
+            const removeFieldPhoto = (photoId) => {
+                setFormData(prev => ({
+                    ...prev,
+                    fieldPhotos: {
+                        ...prev.fieldPhotos,
+                        general: prev.fieldPhotos.general.filter(photo => photo.id !== photoId)
+                    }
+                }));
+            };
+
             const addPhotoEntry = () => {
                 setFormData(prev => ({
                     ...prev,
@@ -719,12 +796,13 @@
             };
 
             const clearForm = () => {
-                if (confirm('Clear all form data including map markers?')) {
+                if (confirm('Clear all form data including map markers and photos?')) {
                     setFormData({
                         monitor: '', projectName: '', date: '', projectNumber: '',
                         totalHrs: '', totalMi: '', timeIn: '', timeOut: '',
                         projectAreas: '', fossils: '', prehistoricArtifacts: '',
                         historicArtifacts: '', architecturalFeatures: '', stratigraphy: '',
+                        fieldPhotos: { general: [] },
                         grainSize: '', color: '', texture: '', sorting: '',
                         seds: [], mineralization: [],
                         siteConditions: '', excavationConditions: '', otherObservations: '',
@@ -732,9 +810,7 @@
                         mapData: {
                             center: [34.0522, -118.2437],
                             zoom: 10,
-                            markers: [],
-                            polygons: [],
-                            polylines: []
+                            markers: []
                         },
                         photoLog: [{
                             id: 'photo_' + Date.now(), photoNum: '', date: '', time: '',
@@ -752,8 +828,8 @@
                 <div className="container">
                     {/* Header */}
                     <div className="header">
-                        <h1>🗺️ Field Monitoring System with Interactive Map</h1>
-                        <p>Professional archaeological and geological field data collection with mapping capabilities</p>
+                        <h1>🗺️ Field Monitoring System</h1>
+                        <p>Professional archaeological and geological field data collection with mapping and photo capabilities</p>
                         <div className="export-buttons">
                             <button className="btn btn-json" onClick={exportToJSON}>
                                 💾 Export JSON
@@ -766,11 +842,11 @@
 
                     {/* Information Alert */}
                     <div className="alert alert-info">
-                        <h3 className="mb-10">🗺️ Interactive Mapping Features</h3>
-                        <p><strong>Click on map:</strong> Add markers for sites, artifacts, fossils, hazards, and samples</p>
-                        <p><strong>Photo Upload:</strong> Click the upload area in each photo log entry to attach images</p>
-                        <p><strong>GPS Integration:</strong> Enter coordinates and click "Center Map" to navigate</p>
-                        <p className="mt-20">All map data and photos are included in your exported reports for comprehensive documentation.</p>
+                        <h3 className="mb-10">🗺️ System Features</h3>
+                        <p><strong>Interactive Map:</strong> Click on map to add location markers</p>
+                        <p><strong>Field Photos:</strong> Upload photos for field observations and in photo log</p>
+                        <p><strong>GPS Integration:</strong> Enter coordinates and center map</p>
+                        <p className="mt-20">All data including photos and map markers are exported in JSON format.</p>
                     </div>
 
                     {/* Interactive Map Section */}
@@ -811,7 +887,7 @@
 
                             <div className="coordinates-display">
                                 <div className="coord-item">
-                                    <strong>Click Instructions:</strong> Select marker type, then click map to add
+                                    <strong>Instructions:</strong> Select marker type, then click map
                                 </div>
                                 <div className="coord-item">
                                     <strong>Total Markers:</strong> {formData.mapData.markers.length}
@@ -877,7 +953,7 @@
                                             )}
                                         </div>
                                         <button 
-                                            className="btn btn-pdf btn-small"
+                                            className="btn btn-clear btn-small"
                                             onClick={() => removeMarker(marker.id)}
                                         >
                                             🗑️
@@ -1075,48 +1151,14 @@
                                     placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
                                     rows="3"
                                 />
-                                <div className="field-photo-section">
-                                    <label className="form-label">Stratigraphy Photos</label>
-                                    <div 
-                                        className="field-photo-upload"
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'image/*';
-                                            input.onchange = (e) => {
-                                                if (e.target.files[0]) {
-                                                    handleFieldPhotoUpload('stratigraphy', e.target.files[0]);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                    >
-                                        <div>🗿 Add stratigraphy photos</div>
-                                    </div>
-                                    {formData.fieldPhotos.stratigraphy.length > 0 && (
-                                        <div className="field-photos-grid">
-                                            {formData.fieldPhotos.stratigraphy.map(photo => (
-                                                <div key={photo.id} className="field-photo-item">
-                                                    <img src={photo.preview} alt="Stratigraphy" />
-                                                    <button 
-                                                        className="field-photo-remove"
-                                                        onClick={() => removeFieldPhoto('stratigraphy', photo.id)}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                             {/* General Field Observations Photos */}
                             <div className="form-group">
-                                <label className="form-label">Additional Field Observation Photos</label>
+                                <label className="form-label">📸 Field Observation Photos</label>
                                 <div className="field-photo-section">
                                     <div 
-                                        className="field-photo-upload"
+                                        className="photo-upload"
                                         onClick={() => {
                                             const input = document.createElement('input');
                                             input.type = 'file';
@@ -1124,30 +1166,33 @@
                                             input.multiple = true;
                                             input.onchange = (e) => {
                                                 Array.from(e.target.files).forEach(file => {
-                                                    handleFieldPhotoUpload('general', file);
+                                                    handleFieldPhotoUpload(file);
                                                 });
                                             };
                                             input.click();
                                         }}
                                     >
-                                        <div style={{fontSize: '32px', marginBottom: '10px'}}>📸</div>
-                                        <div><strong>Click to upload additional field photos</strong></div>
-                                        <small>Add any other relevant field observation images</small>
-                                        <br />
-                                        <small style={{color: '#718096'}}>You can select multiple files at once</small>
+                                        <div style={{fontSize: '48px', marginBottom: '15px'}}>📸</div>
+                                        <div><strong>Click to upload field observation photos</strong></div>
+                                        <p style={{marginTop: '10px', color: '#718096'}}>
+                                            Upload photos related to any of your field observations above
+                                        </p>
+                                        <p style={{fontSize: '14px', color: '#718096', marginTop: '5px'}}>
+                                            You can select multiple files at once • JPG, PNG, GIF supported
+                                        </p>
                                     </div>
                                     {formData.fieldPhotos.general.length > 0 && (
                                         <div>
                                             <h4 style={{margin: '15px 0 10px 0', color: '#2d3748', fontSize: '16px'}}>
-                                                General Field Photos ({formData.fieldPhotos.general.length})
+                                                📷 Uploaded Photos ({formData.fieldPhotos.general.length})
                                             </h4>
                                             <div className="field-photos-grid">
                                                 {formData.fieldPhotos.general.map(photo => (
                                                     <div key={photo.id} className="field-photo-item">
-                                                        <img src={photo.preview} alt="General field observation" />
+                                                        <img src={photo.preview} alt="Field observation" />
                                                         <button 
                                                             className="field-photo-remove"
-                                                            onClick={() => removeFieldPhoto('general', photo.id)}
+                                                            onClick={() => removeFieldPhoto(photo.id)}
                                                             title="Remove photo"
                                                         >
                                                             ×
@@ -1284,18 +1329,21 @@
                     {/* Photo Log */}
                     <div className="form-section">
                         <div className="card-header">
-                            <h2 className="section-title">📸 Photo Log</h2>
+                            <h2 className="section-title">📸 Detailed Photo Log</h2>
                             <button className="btn btn-json btn-small" onClick={addPhotoEntry}>
-                                ➕ Add Photo
+                                ➕ Add Photo Entry
                             </button>
                         </div>
+                        <p style={{marginBottom: '20px', color: '#4a5568'}}>
+                            Use this section for detailed photo documentation with metadata
+                        </p>
                         {formData.photoLog.map((photo, index) => (
                             <div key={photo.id} className="card">
                                 <div className="card-header">
                                     <h3 className="card-title">Photo Entry {index + 1}</h3>
                                     {formData.photoLog.length > 1 && (
                                         <button 
-                                            className="btn btn-pdf btn-small"
+                                            className="btn btn-clear btn-small"
                                             onClick={() => removePhotoEntry(index)}
                                         >
                                             🗑️ Remove
@@ -1329,7 +1377,7 @@
                                             <img src={photo.photoPreview} alt="Photo preview" className="photo-preview" />
                                             <div className="mt-20">
                                                 <button 
-                                                    className="btn btn-word btn-small"
+                                                    className="btn btn-json btn-small"
                                                     onClick={() => {
                                                         const input = document.createElement('input');
                                                         input.type = 'file';
@@ -1346,7 +1394,7 @@
                                                     🔄 Replace
                                                 </button>
                                                 <button 
-                                                    className="btn btn-pdf btn-small"
+                                                    className="btn btn-clear btn-small"
                                                     onClick={() => {
                                                         const newPhotoLog = [...formData.photoLog];
                                                         newPhotoLog[index].photoFile = null;
@@ -1446,12 +1494,13 @@
 
                     {/* Footer */}
                     <div className="alert alert-info">
-                        <h3 className="mb-10">🎯 Complete Field Documentation</h3>
-                        <p><strong>Interactive Mapping:</strong> Click anywhere on the map to add location markers for findings</p>
-                        <p><strong>Photo Documentation:</strong> Upload photos with detailed metadata and GPS coordinates</p>
-                        <p><strong>GPS Integration:</strong> Enter coordinates and use "Center Map" to navigate to specific locations</p>
-                        <p><strong>Comprehensive Export:</strong> All map data, photos, and field observations included in JSON exports</p>
-                        <p className="mt-20">Your field monitoring system now provides complete spatial and visual documentation for professional archaeological and geological reporting.</p>
+                        <h3 className="mb-10">🎯 Complete Field Documentation System</h3>
+                        <p><strong>✅ Interactive Mapping:</strong> Click anywhere on the map to add location markers for findings</p>
+                        <p><strong>✅ Field Observation Photos:</strong> Upload photos directly in the Field Observations section</p>
+                        <p><strong>✅ Detailed Photo Log:</strong> Add formal photo entries with complete metadata</p>
+                        <p><strong>✅ GPS Integration:</strong> Enter coordinates and center map on specific locations</p>
+                        <p><strong>✅ Comprehensive Export:</strong> All data including photos and map markers exported as JSON</p>
+                        <p className="mt-20">Your complete field monitoring solution for professional archaeological and geological documentation!</p>
                     </div>
                 </div>
             );
