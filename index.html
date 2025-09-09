@@ -1246,6 +1246,63 @@
                                         rows="3"
                                     />
                                 </div>
+
+                                {/* Photo Linking Section */}
+                                <div className="photo-link-section">
+                                    <h4 style={{color: '#2c5282', marginBottom: '10px', fontSize: '16px', fontWeight: '600'}}>
+                                        📷 Link Photos to This Finding
+                                    </h4>
+                                    {formData.photoLog.length > 0 ? (
+                                        <div>
+                                            <div className="photo-link-grid">
+                                                {formData.photoLog.map((photo, photoIndex) => (
+                                                    <div key={photo.id} className="photo-link-item">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={finding.linkedPhotoIds.includes(photo.id)}
+                                                            onChange={(e) => handlePhotoLinkChange(index, photo.id, e.target.checked)}
+                                                            style={{width: '16px', height: '16px'}}
+                                                        />
+                                                        {photo.photoPreview && (
+                                                            <img
+                                                                src={photo.photoPreview}
+                                                                alt={`Photo ${photoIndex + 1}`}
+                                                                className="linked-photo-preview"
+                                                            />
+                                                        )}
+                                                        <div style={{flex: 1, minWidth: 0}}>
+                                                            <div style={{fontWeight: '500', fontSize: '14px'}}>
+                                                                {photo.photoNum || `Photo ${photoIndex + 1}`}
+                                                            </div>
+                                                            <div style={{color: '#718096', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                                                {photo.description || 'No description'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {/* Display linked photos summary */}
+                                            {finding.linkedPhotoIds.length > 0 && (
+                                                <div style={{marginTop: '15px'}}>
+                                                    <h5 style={{color: '#2d3748', marginBottom: '8px', fontSize: '14px'}}>
+                                                        Linked Photos ({finding.linkedPhotoIds.length}):
+                                                    </h5>
+                                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '5px'}}>
+                                                        {getLinkedPhotos(finding.linkedPhotoIds).map((photo) => (
+                                                            <span key={photo.id} className="badge">
+                                                                {photo.photoNum || `Photo ${formData.photoLog.indexOf(photo) + 1}`}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p style={{color: '#718096', fontStyle: 'italic'}}>
+                                            No photos available to link. Add photos in the Photo Log section below.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
