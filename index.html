@@ -1075,6 +1075,40 @@
                                     placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
                                     rows="3"
                                 />
+                                <div className="field-photo-section">
+                                    <label className="form-label">Stratigraphy Photos</label>
+                                    <div 
+                                        className="field-photo-upload"
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*';
+                                            input.onchange = (e) => {
+                                                if (e.target.files[0]) {
+                                                    handleFieldPhotoUpload('stratigraphy', e.target.files[0]);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                    >
+                                        <div>🗿 Add stratigraphy photos</div>
+                                    </div>
+                                    {formData.fieldPhotos.stratigraphy.length > 0 && (
+                                        <div className="field-photos-grid">
+                                            {formData.fieldPhotos.stratigraphy.map(photo => (
+                                                <div key={photo.id} className="field-photo-item">
+                                                    <img src={photo.preview} alt="Stratigraphy" />
+                                                    <button 
+                                                        className="field-photo-remove"
+                                                        onClick={() => removeFieldPhoto('stratigraphy', photo.id)}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
