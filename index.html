@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.1/html-docx.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
     <style>
         * {
@@ -70,31 +71,31 @@
             text-decoration: none;
         }
 
-        .btn-primary {
-            background-color: #3b82f6;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #2563eb;
-        }
-
-        .btn-success {
-            background-color: #10b981;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background-color: #059669;
-        }
-
-        .btn-danger {
-            background-color: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
+        .btn-pdf {
             background-color: #dc2626;
+            color: white;
+        }
+
+        .btn-pdf:hover {
+            background-color: #b91c1c;
+        }
+
+        .btn-word {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-word:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-json {
+            background-color: #059669;
+            color: white;
+        }
+
+        .btn-json:hover {
+            background-color: #047857;
         }
 
         .btn-secondary {
@@ -395,6 +396,12 @@
             border: 1px solid #bfdbfe;
             border-radius: 0.5rem;
         }
+
+        .export-info {
+            background-color: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            color: #0c4a6e;
+        }
     </style>
 </head>
 <body>
@@ -458,15 +465,6 @@
               photoFile: null, 
               photoPreview: null 
             }]
-          });
-
-          const [savedReports, setSavedReports] = useState(() => {
-            try {
-              const saved = localStorage?.getItem('fieldMonitoringReports');
-              return saved ? JSON.parse(saved) : [];
-            } catch (e) {
-              return [];
-            }
           });
 
           const handleInputChange = (field, value) => {
@@ -601,37 +599,18 @@
             return formData.photoLog.filter(photo => linkedPhotoIds.includes(photo.id));
           };
 
-          const saveReport = () => {
-            const reportId = 'REPORT_' + Date.now();
-            const timestamp = new Date().toLocaleString();
-            
-            const photoLogForStorage = formData.photoLog.map(photo => ({
-              ...photo,
-              photoFile: null,
-              photoPreview: photo.photoPreview
-            }));
-            
-            const newReport = {
-              id: reportId,
-              timestamp,
-              data: { ...formData, photoLog: photoLogForStorage }
-            };
-            const updatedReports = [...savedReports, newReport];
-            setSavedReports(updatedReports);
-            try {
-              if (localStorage) {
-                localStorage.setItem('fieldMonitoringReports', JSON.stringify(updatedReports));
-              }
-              alert('Report saved as ' + reportId);
-            } catch (e) {
-              alert('Error saving report. Storage may be full.');
-            }
-          };
-
+          // Export functions
           const exportToJSON = () => {
-            const dataStr = JSON.stringify(savedReports, null, 2);
+            const timestamp = new Date().toLocaleString();
+            const reportData = {
+              id: 'REPORT_' + Date.now(),
+              timestamp,
+              data: formData
+            };
+            
+            const dataStr = JSON.stringify(reportData, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            const exportFileDefaultName = 'field_monitoring_reports_' + new Date().toISOString().split('T')[0] + '.json';
+            const exportFileDefaultName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.json`;
             
             const linkElement = document.createElement('a');
             linkElement.setAttribute('href', dataUri);
@@ -639,778 +618,298 @@
             linkElement.click();
           };
 
-          const clearForm = () => {
-            if (confirm('Clear all form data? This will also remove all uploaded photos and findings reports.')) {
-              setFormData({
-                monitor: '',
-                projectName: '',
-                date: '',
-                projectNumber: '',
-                totalHrs: '',
-                totalMi: '',
-                timeIn: '',
-                timeOut: '',
-                projectAreas: '',
-                fossils: '',
-                prehistoricArtifacts: '',
-                historicArtifacts: '',
-                architecturalFeatures: '',
-                stratigraphy: '',
-                grainSize: '',
-                color: '',
-                texture: '',
-                sorting: '',
-                seds: [],
-                mineralization: [],
-                siteConditions: '',
-                excavationConditions: '',
-                otherObservations: '',
-                findingsReports: [{
-                  fieldNumber: '',
-                  fieldId: '',
-                  datum: 'NAD 83 CONUS',
-                  condition: '',
-                  contextDescription: '',
-                  approxAge: '',
-                  soils: '',
-                  location: '',
-                  fateOfLocality: '',
-                  linkedPhotoIds: []
-                }],
-                utmE: '',
-                utmN: '',
-                latitude: '',
-                longitude: '',
-                elevation: '',
-                numberOfArtifacts: '',
-                photoLog: [{ 
-                  id: 'photo_' + Date.now(), 
-                  photoNum: '', 
-                  date: '', 
-                  time: '', 
-                  gps: '', 
-                  direction: '', 
-                  description: '', 
-                  equipment: '', 
-                  photoFile: null, 
-                  photoPreview: null 
-                }]
+          const exportToPDF = () => {
+            try {
+              const { jsPDF } = window.jspdf;
+              const doc = new jsPDF();
+              let yPosition = 20;
+              const lineHeight = 7;
+              const margin = 20;
+              const pageWidth = doc.internal.pageSize.width;
+              const pageHeight = doc.internal.pageSize.height;
+
+              // Helper function to add new page if needed
+              const checkPageBreak = () => {
+                if (yPosition > pageHeight - 30) {
+                  doc.addPage();
+                  yPosition = 20;
+                }
+              };
+
+              // Helper function to add text with word wrapping
+              const addWrappedText = (text, x, y, maxWidth) => {
+                const lines = doc.splitTextToSize(text, maxWidth);
+                doc.text(lines, x, y);
+                return lines.length * lineHeight;
+              };
+
+              // Title
+              doc.setFontSize(16);
+              doc.setFont(undefined, 'bold');
+              doc.text('FIELD MONITORING REPORT', pageWidth / 2, yPosition, { align: 'center' });
+              yPosition += lineHeight * 2;
+
+              // Basic Information
+              doc.setFontSize(12);
+              doc.setFont(undefined, 'bold');
+              doc.text('BASIC INFORMATION', margin, yPosition);
+              yPosition += lineHeight;
+              doc.setFont(undefined, 'normal');
+              doc.setFontSize(10);
+
+              const basicInfo = [
+                `Monitor: ${formData.monitor}`,
+                `Project Name: ${formData.projectName}`,
+                `Date: ${formData.date}`,
+                `Project Number: ${formData.projectNumber}`,
+                `Total Hours: ${formData.totalHrs}`,
+                `Total Miles: ${formData.totalMi}`,
+                `Time In: ${formData.timeIn}`,
+                `Time Out: ${formData.timeOut}`
+              ];
+
+              basicInfo.forEach(info => {
+                checkPageBreak();
+                doc.text(info, margin, yPosition);
+                yPosition += lineHeight;
               });
+
+              yPosition += lineHeight;
+
+              // Field Observations
+              checkPageBreak();
+              doc.setFontSize(12);
+              doc.setFont(undefined, 'bold');
+              doc.text('FIELD OBSERVATIONS', margin, yPosition);
+              yPosition += lineHeight;
+              doc.setFont(undefined, 'normal');
+              doc.setFontSize(10);
+
+              if (formData.projectAreas) {
+                checkPageBreak();
+                doc.text('Project Areas Monitored:', margin, yPosition);
+                yPosition += lineHeight;
+                yPosition += addWrappedText(formData.projectAreas, margin + 10, yPosition, pageWidth - margin * 2 - 10);
+                yPosition += lineHeight;
+              }
+
+              const observations = [
+                { title: 'Fossils', content: formData.fossils },
+                { title: 'Prehistoric Artifacts/Ecofacts', content: formData.prehistoricArtifacts },
+                { title: 'Historic Artifacts/Ecofacts', content: formData.historicArtifacts },
+                { title: 'Architectural Features', content: formData.architecturalFeatures },
+                { title: 'Stratigraphy', content: formData.stratigraphy }
+              ];
+
+              observations.forEach(obs => {
+                if (obs.content) {
+                  checkPageBreak();
+                  doc.text(`${obs.title}:`, margin, yPosition);
+                  yPosition += lineHeight;
+                  yPosition += addWrappedText(obs.content, margin + 10, yPosition, pageWidth - margin * 2 - 10);
+                  yPosition += lineHeight;
+                }
+              });
+
+              // Lithology
+              if (formData.grainSize || formData.color || formData.texture || formData.sorting || formData.seds.length > 0 || formData.mineralization.length > 0) {
+                yPosition += lineHeight;
+                checkPageBreak();
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('LITHOLOGY', margin, yPosition);
+                yPosition += lineHeight;
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+
+                const lithologyInfo = [
+                  `Grain Size: ${formData.grainSize}`,
+                  `Color: ${formData.color}`,
+                  `Texture: ${formData.texture}`,
+                  `Sorting: ${formData.sorting}`,
+                  `Sediments: ${formData.seds.join(', ')}`,
+                  `Mineralization: ${formData.mineralization.join(', ')}`
+                ].filter(info => !info.endsWith(': ') && !info.endsWith(': '));
+
+                lithologyInfo.forEach(info => {
+                  checkPageBreak();
+                  doc.text(info, margin, yPosition);
+                  yPosition += lineHeight;
+                });
+              }
+
+              // Site Conditions
+              yPosition += lineHeight;
+              checkPageBreak();
+              doc.setFontSize(12);
+              doc.setFont(undefined, 'bold');
+              doc.text('SITE & EXCAVATION CONDITIONS', margin, yPosition);
+              yPosition += lineHeight;
+              doc.setFont(undefined, 'normal');
+              doc.setFontSize(10);
+
+              const siteConditions = [
+                { title: 'Site Conditions & Personnel', content: formData.siteConditions },
+                { title: 'Excavation Conditions', content: formData.excavationConditions },
+                { title: 'Other Observations & Comments', content: formData.otherObservations }
+              ];
+
+              siteConditions.forEach(condition => {
+                if (condition.content) {
+                  checkPageBreak();
+                  doc.text(`${condition.title}:`, margin, yPosition);
+                  yPosition += lineHeight;
+                  yPosition += addWrappedText(condition.content, margin + 10, yPosition, pageWidth - margin * 2 - 10);
+                  yPosition += lineHeight;
+                }
+              });
+
+              // Findings Reports
+              if (formData.findingsReports.length > 0) {
+                yPosition += lineHeight;
+                checkPageBreak();
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('FINDINGS REPORTS', margin, yPosition);
+                yPosition += lineHeight;
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+
+                formData.findingsReports.forEach((finding, index) => {
+                  checkPageBreak();
+                  doc.setFont(undefined, 'bold');
+                  doc.text(`Findings Report ${index + 1}:`, margin, yPosition);
+                  yPosition += lineHeight;
+                  doc.setFont(undefined, 'normal');
+
+                  const findingInfo = [
+                    `Field Number: ${finding.fieldNumber}`,
+                    `Field ID: ${finding.fieldId}`,
+                    `Datum: ${finding.datum}`,
+                    `Condition: ${finding.condition}`,
+                    `Approximate Age: ${finding.approxAge}`,
+                    `Soils: ${finding.soils}`,
+                    `Location: ${finding.location}`,
+                    `Fate of Locality: ${finding.fateOfLocality}`
+                  ].filter(info => !info.endsWith(': '));
+
+                  findingInfo.forEach(info => {
+                    checkPageBreak();
+                    doc.text(info, margin + 10, yPosition);
+                    yPosition += lineHeight;
+                  });
+
+                  if (finding.contextDescription) {
+                    checkPageBreak();
+                    doc.text('Context Description:', margin + 10, yPosition);
+                    yPosition += lineHeight;
+                    yPosition += addWrappedText(finding.contextDescription, margin + 20, yPosition, pageWidth - margin * 2 - 20);
+                    yPosition += lineHeight;
+                  }
+
+                  if (finding.linkedPhotoIds.length > 0) {
+                    checkPageBreak();
+                    doc.text(`Linked Photos: ${finding.linkedPhotoIds.length} photo(s)`, margin + 10, yPosition);
+                    yPosition += lineHeight;
+                  }
+
+                  yPosition += lineHeight;
+                });
+              }
+
+              // Coordinates
+              yPosition += lineHeight;
+              checkPageBreak();
+              doc.setFontSize(12);
+              doc.setFont(undefined, 'bold');
+              doc.text('COORDINATES', margin, yPosition);
+              yPosition += lineHeight;
+              doc.setFont(undefined, 'normal');
+              doc.setFontSize(10);
+
+              const coordinateInfo = [
+                `UTM Easting: ${formData.utmE}`,
+                `UTM Northing: ${formData.utmN}`,
+                `Latitude N: ${formData.latitude}`,
+                `Longitude W: ${formData.longitude}`,
+                `Elevation: ${formData.elevation}`,
+                `Number of Artifacts/Ecofacts: ${formData.numberOfArtifacts}`
+              ].filter(info => !info.endsWith(': '));
+
+              coordinateInfo.forEach(info => {
+                checkPageBreak();
+                doc.text(info, margin, yPosition);
+                yPosition += lineHeight;
+              });
+
+              // Photo Log Summary
+              if (formData.photoLog.some(photo => photo.photoNum || photo.description)) {
+                yPosition += lineHeight;
+                checkPageBreak();
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('PHOTO LOG SUMMARY', margin, yPosition);
+                yPosition += lineHeight;
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+
+                formData.photoLog.forEach((photo, index) => {
+                  if (photo.photoNum || photo.description) {
+                    checkPageBreak();
+                    doc.text(`Photo ${index + 1} (${photo.photoNum || 'No number'}):`, margin, yPosition);
+                    yPosition += lineHeight;
+                    
+                    const photoInfo = [
+                      `Date: ${photo.date}`,
+                      `Time: ${photo.time}`,
+                      `GPS: ${photo.gps}`,
+                      `Direction: ${photo.direction}`,
+                      `Equipment: ${photo.equipment}`
+                    ].filter(info => !info.endsWith(': '));
+
+                    photoInfo.forEach(info => {
+                      checkPageBreak();
+                      doc.text(info, margin + 10, yPosition);
+                      yPosition += lineHeight;
+                    });
+
+                    if (photo.description) {
+                      checkPageBreak();
+                      doc.text('Description:', margin + 10, yPosition);
+                      yPosition += lineHeight;
+                      yPosition += addWrappedText(photo.description, margin + 20, yPosition, pageWidth - margin * 2 - 20);
+                    }
+                    yPosition += lineHeight;
+                  }
+                });
+              }
+
+              // Footer
+              const timestamp = new Date().toLocaleString();
+              doc.setFontSize(8);
+              doc.text(`Generated on: ${timestamp}`, margin, pageHeight - 10);
+
+              // Save the PDF
+              const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.pdf`;
+              doc.save(fileName);
+              
+            } catch (error) {
+              console.error('PDF generation error:', error);
+              alert('Error generating PDF. Please try again.');
             }
           };
 
-          const sedimentOptions = ['mud/s', 'silt/s', 'sand/s', 'lime/s', 'shale', 'conglomerate', 'breccia', 'concretions'];
-          const mineralizationOptions = ['caliche', 'siliceous', 'paleosol', 'alluvium', 'lag deposits'];
-          const conditionOptions = ['poor', 'fair', 'good', 'excellent', 'damaged', 'partial', 'whole'];
-          const fateOptions = ['accessible', 'buried', 'graded away'];
-
-          return (
-            <div className="container">
-              {/* Header */}
-              <div className="header">
-                <h1>Field Monitoring Data Entry</h1>
-                <div className="button-group">
-                  <button className="btn btn-primary" onClick={saveReport}>
-                    💾 Save Report
-                  </button>
-                  <button className="btn btn-success" onClick={exportToJSON}>
-                    📥 Export JSON
-                  </button>
-                  <button className="btn btn-secondary" onClick={clearForm}>
-                    🗑️ Clear Form
-                  </button>
-                </div>
-              </div>
-
-              {/* Saved Reports Alert */}
-              {savedReports.length > 0 && (
-                <div className="alert alert-info">
-                  <h3 className="mb-2">Saved Reports: {savedReports.length}</h3>
-                  <p className="text-sm">Multiple findings reports and photo linking now supported!</p>
-                </div>
-              )}
-
-              {/* Basic Information Section */}
-              <div className="section">
-                <h2>Basic Information</h2>
-                <div className="grid grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">Monitor</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.monitor}
-                      onChange={(e) => handleInputChange('monitor', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Project Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.projectName}
-                      onChange={(e) => handleInputChange('projectName', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Date</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={formData.date}
-                      onChange={(e) => handleInputChange('date', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Project Number</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.projectNumber}
-                      onChange={(e) => handleInputChange('projectNumber', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Total Hours</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.totalHrs}
-                      onChange={(e) => handleInputChange('totalHrs', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Total Miles</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.totalMi}
-                      onChange={(e) => handleInputChange('totalMi', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Time In</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={formData.timeIn}
-                      onChange={(e) => handleInputChange('timeIn', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Time Out</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={formData.timeOut}
-                      onChange={(e) => handleInputChange('timeOut', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Field Observations Section */}
-              <div className="section">
-                <h2>Field Observations</h2>
-                <div className="form-group mb-4">
-                  <label className="form-label">Project Areas Monitored</label>
-                  <textarea
-                    className="form-textarea"
-                    value={formData.projectAreas}
-                    onChange={(e) => handleInputChange('projectAreas', e.target.value)}
-                    rows="2"
-                  />
-                </div>
-                <div className="grid grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">Fossils</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.fossils}
-                      onChange={(e) => handleInputChange('fossils', e.target.value)}
-                      rows="3"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Prehistoric Artifacts/Ecofacts</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.prehistoricArtifacts}
-                      onChange={(e) => handleInputChange('prehistoricArtifacts', e.target.value)}
-                      rows="3"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Historic Artifacts/Ecofacts</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.historicArtifacts}
-                      onChange={(e) => handleInputChange('historicArtifacts', e.target.value)}
-                      rows="3"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Architectural Features</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.architecturalFeatures}
-                      onChange={(e) => handleInputChange('architecturalFeatures', e.target.value)}
-                      rows="3"
-                    />
-                  </div>
-                </div>
-                <div className="form-group mt-4">
-                  <label className="form-label">Stratigraphy</label>
-                  <textarea
-                    className="form-textarea"
-                    value={formData.stratigraphy}
-                    onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
-                    placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
-                    rows="3"
-                  />
-                </div>
-              </div>
-
-              {/* Lithology Section */}
-              <div className="section">
-                <h2>Lithology</h2>
-                <div className="grid grid-cols-2 mb-4">
-                  <div className="form-group">
-                    <label className="form-label">Grain Size</label>
-                    <select
-                      className="form-select"
-                      value={formData.grainSize}
-                      onChange={(e) => handleInputChange('grainSize', e.target.value)}
-                    >
-                      <option value="">Select...</option>
-                      <option value="F">F (Fine)</option>
-                      <option value="M">M (Medium)</option>
-                      <option value="C">C (Coarse)</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Color</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.color}
-                      onChange={(e) => handleInputChange('color', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Texture</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.texture}
-                      onChange={(e) => handleInputChange('texture', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Sorting</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.sorting}
-                      onChange={(e) => handleInputChange('sorting', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <label className="form-label mb-2">Sediments</label>
-                  <div className="checkbox-group">
-                    {sedimentOptions.map(option => (
-                      <div key={option} className="checkbox-item">
-                        <input
-                          type="checkbox"
-                          checked={formData.seds.includes(option)}
-                          onChange={() => handleCheckboxChange('seds', option)}
-                        />
-                        <span className="text-sm">{option}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Site Conditions Section */}
-              <div className="section">
-                <h2>Site & Excavation Conditions</h2>
-                <div className="grid grid-cols-2">
-                  <div className="form-group">
-                    <label className="form-label">Site Conditions & Personnel</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.siteConditions}
-                      onChange={(e) => handleInputChange('siteConditions', e.target.value)}
-                      placeholder="non-compliance / hazards / weather / safety concerns / visitors"
-                      rows="3"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Excavation Conditions</label>
-                    <textarea
-                      className="form-textarea"
-                      value={formData.excavationConditions}
-                      onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
-                      placeholder="status / equipment / cuts / access"
-                      rows="3"
-                    />
-                  </div>
-                </div>
-                <div className="form-group mt-4">
-                  <label className="form-label">Other Observations & Comments</label>
-                  <textarea
-                    className="form-textarea"
-                    value={formData.otherObservations}
-                    onChange={(e) => handleInputChange('otherObservations', e.target.value)}
-                    rows="4"
-                  />
-                </div>
-              </div>
-
-              {/* Multiple Findings Reports Section */}
-              <div className="section">
-                <div className="flex justify-between items-center mb-3">
-                  <h2>Findings Reports</h2>
-                  <button
-                    className="btn btn-success btn-small"
-                    onClick={addFindingsReport}
-                  >
-                    ➕ Add Findings Report
-                  </button>
-                </div>
-                <div>
-                  {formData.findingsReports.map((finding, reportIndex) => (
-                    <div key={reportIndex} className="card">
-                      <div className="card-header">
-                        <span>Findings Report {reportIndex + 1}</span>
-                        {formData.findingsReports.length > 1 && (
-                          <button
-                            className="btn btn-danger btn-small"
-                            onClick={() => removeFindingsReport(reportIndex)}
-                          >
-                            🗑️ Remove Report
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 mb-4">
-                        <div className="form-group">
-                          <label className="form-label">Field Number</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.fieldNumber}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldNumber', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Field ID</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.fieldId}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fieldId', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Datum</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.datum}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'datum', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Condition</label>
-                          <select
-                            className="form-select"
-                            value={finding.condition}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'condition', e.target.value)}
-                          >
-                            <option value="">Select...</option>
-                            {conditionOptions.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Approximate Age</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.approxAge}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'approxAge', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Soils</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.soils}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'soils', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Location</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={finding.location}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'location', e.target.value)}
-                            placeholder="pads / cuts / landmarks"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Fate of Locality</label>
-                          <select
-                            className="form-select"
-                            value={finding.fateOfLocality}
-                            onChange={(e) => handleFindingsReportChange(reportIndex, 'fateOfLocality', e.target.value)}
-                          >
-                            <option value="">Select...</option>
-                            {fateOptions.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div className="form-group mb-4">
-                        <label className="form-label">Artifact/Ecofact Context Description</label>
-                        <textarea
-                          className="form-textarea"
-                          value={finding.contextDescription}
-                          onChange={(e) => handleFindingsReportChange(reportIndex, 'contextDescription', e.target.value)}
-                          rows="3"
-                        />
-                      </div>
-                      {/* Photo Linking Section */}
-                      <div className="photo-link-section">
-                        <h4 className="text-blue-800 mb-2">Link Photos to This Finding</h4>
-                        {formData.photoLog.length > 0 ? (
-                          <div className="grid grid-cols-2">
-                            {formData.photoLog.map((photo, photoIndex) => (
-                              <div key={photo.id} className="flex items-center gap-3 p-2 bg-white rounded border mb-2">
-                                <input
-                                  type="checkbox"
-                                  checked={finding.linkedPhotoIds.includes(photo.id)}
-                                  onChange={(e) => handlePhotoLinkChange(reportIndex, photo.id, e.target.checked)}
-                                />
-                                <div className="flex items-center gap-2 flex-1">
-                                  {photo.photoPreview && (
-                                    <img
-                                      src={photo.photoPreview}
-                                      alt={`Photo ${photoIndex + 1}`}
-                                      className="linked-photo-preview"
-                                    />
-                                  )}
-                                  <div className="text-sm">
-                                    <div className="font-medium">
-                                      {photo.photoNum || `Photo ${photoIndex + 1}`}
-                                    </div>
-                                    <div className="text-gray-600 truncate">
-                                      {photo.description || 'No description'}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-blue-600 text-sm">
-                            No photos available to link. Add photos in the Photo Log section below.
-                          </p>
-                        )}
-                        {/* Display linked photos */}
-                        {finding.linkedPhotoIds.length > 0 && (
-                          <div className="mt-3">
-                            <h5 className="text-blue-700 mb-2">
-                              Linked Photos ({finding.linkedPhotoIds.length}):
-                            </h5>
-                            <div className="flex flex-wrap gap-2">
-                              {getLinkedPhotos(finding.linkedPhotoIds).map((photo) => (
-                                <span key={photo.id} className="badge">
-                                  {photo.photoNum || `Photo ${formData.photoLog.indexOf(photo) + 1}`}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Coordinates Section */}
-              <div className="section">
-                <h2>Coordinates</h2>
-                <div className="grid grid-cols-3">
-                  <div className="form-group">
-                    <label className="form-label">UTM Easting</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.utmE}
-                      onChange={(e) => handleInputChange('utmE', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">UTM Northing</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.utmN}
-                      onChange={(e) => handleInputChange('utmN', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Elevation</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.elevation}
-                      onChange={(e) => handleInputChange('elevation', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Latitude N</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.latitude}
-                      onChange={(e) => handleInputChange('latitude', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Longitude W</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.longitude}
-                      onChange={(e) => handleInputChange('longitude', e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Number of Artifacts/Ecofacts</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.numberOfArtifacts}
-                      onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
-                      placeholder="specimens / paperbags / boxes / samples"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Photo Log Section */}
-              <div className="section">
-                <div className="flex justify-between items-center mb-3">
-                  <h2>Photo Log</h2>
-                  <button
-                    className="btn btn-primary btn-small"
-                    onClick={addPhotoEntry}
-                  >
-                    ➕ Add Photo Entry
-                  </button>
-                </div>
-                <div>
-                  {formData.photoLog.map((photo, index) => (
-                    <div key={index} className="card">
-                      <div className="card-header">
-                        <span>Photo Entry {index + 1}</span>
-                        {formData.photoLog.length > 1 && (
-                          <button
-                            className="btn btn-danger btn-small"
-                            onClick={() => removePhotoEntry(index)}
-                          >
-                            🗑️ Remove Entry
-                          </button>
-                        )}
-                      </div>
-                      {/* Photo Upload Section */}
-                      <div className="mb-4">
-                        <label className="form-label mb-2">Upload Photo</label>
-                        {!photo.photoPreview ? (
-                          <div
-                            className="photo-upload-area"
-                            onClick={() => {
-                              const input = document.createElement('input');
-                              input.type = 'file';
-                              input.accept = 'image/*';
-                              input.onchange = (e) => {
-                                if (e.target.files[0]) {
-                                  handlePhotoUpload(index, e.target.files[0]);
-                                }
-                              };
-                              input.click();
-                            }}
-                          >
-                            <div className="text-gray-500">
-                              <div className="text-center" style={{fontSize: '3rem'}}>📸</div>
-                              <p className="text-sm">Click to upload photo</p>
-                              <p className="text-xs text-gray-400 mt-1">JPG, PNG, GIF up to 10MB</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-3">
-                            <img
-                              src={photo.photoPreview}
-                              alt={`Photo ${index + 1}`}
-                              className="photo-preview"
-                            />
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-600 mb-2">Photo uploaded successfully</p>
-                              <div className="flex gap-2">
-                                <button
-                                  className="btn btn-primary btn-small"
-                                  onClick={() => {
-                                    const input = document.createElement('input');
-                                    input.type = 'file';
-                                    input.accept = 'image/*';
-                                    input.onchange = (e) => {
-                                      if (e.target.files[0]) {
-                                        handlePhotoUpload(index, e.target.files[0]);
-                                      }
-                                    };
-                                    input.click();
-                                  }}
-                                >
-                                  📷 Replace
-                                </button>
-                                <button
-                                  className="btn btn-danger btn-small"
-                                  onClick={() => removePhoto(index)}
-                                >
-                                  🗑️ Remove
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      {/* Photo Details */}
-                      <div className="grid grid-cols-3 mb-3">
-                        <div className="form-group">
-                          <label className="form-label">Photo #</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={photo.photoNum}
-                            onChange={(e) => handlePhotoLogChange(index, 'photoNum', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Date</label>
-                          <input
-                            type="date"
-                            className="form-input"
-                            value={photo.date}
-                            onChange={(e) => handlePhotoLogChange(index, 'date', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Time</label>
-                          <input
-                            type="time"
-                            className="form-input"
-                            value={photo.time}
-                            onChange={(e) => handlePhotoLogChange(index, 'time', e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">GPS Coordinates</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={photo.gps}
-                            onChange={(e) => handlePhotoLogChange(index, 'gps', e.target.value)}
-                            placeholder="e.g., 34.0522°N, 118.2437°W"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Cardinal Direction</label>
-                          <select
-                            className="form-select"
-                            value={photo.direction}
-                            onChange={(e) => handlePhotoLogChange(index, 'direction', e.target.value)}
-                          >
-                            <option value="">Select...</option>
-                            <option value="N">North</option>
-                            <option value="NE">Northeast</option>
-                            <option value="E">East</option>
-                            <option value="SE">Southeast</option>
-                            <option value="S">South</option>
-                            <option value="SW">Southwest</option>
-                            <option value="W">West</option>
-                            <option value="NW">Northwest</option>
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Equipment Used</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={photo.equipment}
-                            onChange={(e) => handlePhotoLogChange(index, 'equipment', e.target.value)}
-                            placeholder="Camera, lens, etc."
-                          />
-                        </div>
-                      </div>
-                      <div className="form-group mt-3">
-                        <label className="form-label">Description of Subject</label>
-                        <textarea
-                          className="form-textarea"
-                          value={photo.description}
-                          onChange={(e) => handlePhotoLogChange(index, 'description', e.target.value)}
-                          rows="3"
-                          placeholder="Describe what the photo shows, any notable features, context, etc."
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Footer with summary */}
-              <div className="alert alert-info mt-4">
-                <h3 className="text-blue-800 mb-2">How to Use This System</h3>
-                <div className="text-sm text-blue-700">
-                  <p className="mb-2">
-                    <strong>Save Report:</strong> Click to save the current form data. Each report gets a unique ID and timestamp.
-                  </p>
-                  <p className="mb-2">
-                    <strong>Export Data:</strong> Downloads all saved reports as a JSON file that you can import into spreadsheets or databases for analysis.
-                  </p>
-                  <p className="mb-2">
-                    <strong>Clear Form:</strong> Resets all fields to start a new entry.
-                  </p>
-                  <p>Data is stored locally in your browser session. Export regularly to preserve your work!</p>
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        ReactDOM.render(React.createElement(FieldMonitoringApp), document.getElementById('root'));
-    </script>
-</body>
-</html>>{option}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="form-label mb-2">Mineralization</label>
-                  <div className="checkbox-group">
-                    {mineralizationOptions.map(option => (
-                      <div key={option} className="checkbox-item">
-                        <input
-                          type="checkbox"
-                          checked={formData.mineralization.includes(option)}
-                          onChange={() => handleCheckboxChange('mineralization', option)}
-                        />
-                        <span className="text-sm"
+          const exportToWordDoc = () => {
+            try {
+              // Create HTML content for Word document
+              const timestamp = new Date().toLocaleString();
+              let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <title>Field Monitoring Report</title>
+                  <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
+                    h1 { text-align: center; color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                    h2 { color: #555; border-bottom: 1px soli
