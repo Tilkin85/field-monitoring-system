@@ -1167,7 +1167,65 @@
                                     )}
                                 </div>
 
-                                <div className="form-grid grid-3 mb-15">
+                                {/* Photo Upload */}
+                                <div className="mb-20">
+                                    {!photo.photoPreview ? (
+                                        <div 
+                                            className="photo-upload"
+                                            onClick={() => {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = 'image/*';
+                                                input.onchange = (e) => {
+                                                    if (e.target.files[0]) {
+                                                        handlePhotoUpload(index, e.target.files[0]);
+                                                    }
+                                                };
+                                                input.click();
+                                            }}
+                                        >
+                                            <div>📸</div>
+                                            <p><strong>Click to upload photo</strong></p>
+                                            <p style={{color: '#718096', fontSize: '14px'}}>JPG, PNG, GIF up to 10MB</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center">
+                                            <img src={photo.photoPreview} alt="Photo preview" className="photo-preview" />
+                                            <div className="mt-20">
+                                                <button 
+                                                    className="btn btn-word btn-small"
+                                                    onClick={() => {
+                                                        const input = document.createElement('input');
+                                                        input.type = 'file';
+                                                        input.accept = 'image/*';
+                                                        input.onchange = (e) => {
+                                                            if (e.target.files[0]) {
+                                                                handlePhotoUpload(index, e.target.files[0]);
+                                                            }
+                                                        };
+                                                        input.click();
+                                                    }}
+                                                    style={{marginRight: '10px'}}
+                                                >
+                                                    🔄 Replace
+                                                </button>
+                                                <button 
+                                                    className="btn btn-pdf btn-small"
+                                                    onClick={() => {
+                                                        const newPhotoLog = [...formData.photoLog];
+                                                        newPhotoLog[index].photoFile = null;
+                                                        newPhotoLog[index].photoPreview = null;
+                                                        setFormData(prev => ({ ...prev, photoLog: newPhotoLog }));
+                                                    }}
+                                                >
+                                                    🗑️ Remove Photo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Photo Details */}
                                     <div className="form-group">
                                         <label className="form-label">Photo Number</label>
                                         <input
