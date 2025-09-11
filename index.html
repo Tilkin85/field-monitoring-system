@@ -495,10 +495,15 @@
                 
                 // Field Observations
                 projectAreas: '',
-                fossils: '',
-                prehistoricArtifacts: '',
-                historicArtifacts: '',
-                architecturalFeatures: '',
+                fieldObservations: [{
+                    id: 'obs_' + Date.now(),
+                    type: 'fossil',
+                    description: '',
+                    location: '',
+                    depth: '',
+                    context: '',
+                    notes: ''
+                }],
                 stratigraphy: '',
                 
                 // Field Observation Photos
@@ -747,6 +752,37 @@
                 }));
             };
 
+            const addFieldObservation = () => {
+                setFormData(prev => ({
+                    ...prev,
+                    fieldObservations: [...prev.fieldObservations, {
+                        id: 'obs_' + Date.now(),
+                        type: 'fossil',
+                        description: '',
+                        location: '',
+                        depth: '',
+                        context: '',
+                        notes: ''
+                    }]
+                }));
+            };
+
+            const removeFieldObservation = (obsId) => {
+                setFormData(prev => ({
+                    ...prev,
+                    fieldObservations: prev.fieldObservations.filter(obs => obs.id !== obsId)
+                }));
+            };
+
+            const handleFieldObservationChange = (obsId, field, value) => {
+                setFormData(prev => ({
+                    ...prev,
+                    fieldObservations: prev.fieldObservations.map(obs => 
+                        obs.id === obsId ? { ...obs, [field]: value } : obs
+                    )
+                }));
+            };
+
             const addPhotoEntry = () => {
                 setFormData(prev => ({
                     ...prev,
@@ -800,8 +836,17 @@
                     setFormData({
                         monitor: '', projectName: '', date: '', projectNumber: '',
                         totalHrs: '', totalMi: '', timeIn: '', timeOut: '',
-                        projectAreas: '', fossils: '', prehistoricArtifacts: '',
-                        historicArtifacts: '', architecturalFeatures: '', stratigraphy: '',
+                        projectAreas: '', 
+                        fieldObservations: [{
+                            id: 'obs_' + Date.now(),
+                            type: 'fossil',
+                            description: '',
+                            location: '',
+                            depth: '',
+                            context: '',
+                            notes: ''
+                        }], 
+                        stratigraphy: '',
                         fieldPhotos: { general: [] },
                         grainSize: '', color: '', texture: '', sorting: '',
                         seds: [], mineralization: [],
@@ -1088,7 +1133,12 @@
 
                     {/* Field Observations */}
                     <div className="form-section">
-                        <h2 className="section-title">🔍 Field Observations</h2>
+                        <div className="card-header">
+                            <h2 className="section-title">🔍 Field Observations</h2>
+                            <button className="btn btn-json btn-small" onClick={addFieldObservation}>
+                                ➕ Add Field Observation
+                            </button>
+                        </div>
                         <div className="form-grid">
                             <div className="form-group">
                                 <label className="form-label">Project Areas Monitored</label>
@@ -1100,50 +1150,94 @@
                                     rows="3"
                                 />
                             </div>
-                            <div className="form-grid grid-2">
-                                <div className="form-group">
-                                    <label className="form-label">Fossils</label>
-                                    <textarea
-                                        className="form-textarea"
-                                        value={formData.fossils}
-                                        onChange={(e) => handleInputChange('fossils', e.target.value)}
-                                        placeholder="Document any fossil discoveries"
-                                        rows="4"
-                                    />
+
+                            {/* Individual Field Observations */}
+                            {formData.fieldObservations.map((observation, index) => (
+                                <div key={observation.id} className="card">
+                                    <div className="card-header">
+                                        <h3 className="card-title">Field Observation {index + 1}</h3>
+                                        {formData.fieldObservations.length > 1 && (
+                                            <button 
+                                                className="btn btn-clear btn-small"
+                                                onClick={() => removeFieldObservation(observation.id)}
+                                            >
+                                                🗑️ Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="form-grid grid-2">
+                                        <div className="form-group">
+                                            <label className="form-label">Observation Type</label>
+                                            <select
+                                                className="form-select"
+                                                value={observation.type}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'type', e.target.value)}
+                                            >
+                                                <option value="fossil">🦴 Fossil</option>
+                                                <option value="prehistoric">🏺 Prehistoric Artifact/Ecofact</option>
+                                                <option value="historic">📜 Historic Artifact/Ecofact</option>
+                                                <option value="architectural">🏛️ Architectural Feature</option>
+                                                <option value="geological">🗿 Geological Feature</option>
+                                                <option value="disturbance">⚠️ Site Disturbance</option>
+                                                <option value="other">📍 Other</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Location/Context</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.location}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'location', e.target.value)}
+                                                placeholder="e.g., Grid Square 5A, North wall"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Depth/Level</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.depth}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'depth', e.target.value)}
+                                                placeholder="e.g., 0-15cm, Level 3"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Stratigraphic Context</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.context}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'context', e.target.value)}
+                                                placeholder="e.g., Clay layer, Feature 12"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Detailed Description</label>
+                                        <textarea
+                                            className="form-textarea"
+                                            value={observation.description}
+                                            onChange={(e) => handleFieldObservationChange(observation.id, 'description', e.target.value)}
+                                            placeholder="Provide detailed description of the finding, condition, size, material, etc."
+                                            rows="3"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Additional Notes</label>
+                                        <textarea
+                                            className="form-textarea"
+                                            value={observation.notes}
+                                            onChange={(e) => handleFieldObservationChange(observation.id, 'notes', e.target.value)}
+                                            placeholder="Any additional observations, measurements, or special notes"
+                                            rows="2"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Prehistoric Artifacts/Ecofacts</label>
-                                    <textarea
-                                        className="form-textarea"
-                                        value={formData.prehistoricArtifacts}
-                                        onChange={(e) => handleInputChange('prehistoricArtifacts', e.target.value)}
-                                        placeholder="Record prehistoric findings"
-                                        rows="4"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Historic Artifacts/Ecofacts</label>
-                                    <textarea
-                                        className="form-textarea"
-                                        value={formData.historicArtifacts}
-                                        onChange={(e) => handleInputChange('historicArtifacts', e.target.value)}
-                                        placeholder="Record historic findings"
-                                        rows="4"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Architectural Features</label>
-                                    <textarea
-                                        className="form-textarea"
-                                        value={formData.architecturalFeatures}
-                                        onChange={(e) => handleInputChange('architecturalFeatures', e.target.value)}
-                                        placeholder="Document structural features"
-                                        rows="4"
-                                    />
-                                </div>
-                            </div>
+                            ))}
+
                             <div className="form-group">
-                                <label className="form-label">Stratigraphy</label>
+                                <label className="form-label">General Stratigraphy</label>
                                 <textarea
                                     className="form-textarea"
                                     value={formData.stratigraphy}
