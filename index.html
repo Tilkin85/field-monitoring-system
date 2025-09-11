@@ -9,6 +9,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.1/html-docx.js"></script>
     <style>
         * {
             margin: 0;
@@ -831,6 +833,264 @@
                 }
             };
 
+            const exportToPDF = () => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const pageWidth = doc.internal.pageSize.width;
+                    const margin = 20;
+                    let yPosition = margin;
+                    
+                    // Helper function to add text with word wrapping
+                    const addText = (text, fontSize = 11, isBold = false) => {
+                        if (yPosition > 270) {
+                            doc.addPage();
+                            yPosition = margin;
+                        }
+                        doc.setFontSize(fontSize);
+                        if (isBold) doc.setFont(undefined, 'bold');
+                        else doc.setFont(undefined, 'normal');
+                        
+                        const textLines = doc.splitTextToSize(text, pageWidth - 2 * margin);
+                        doc.text(textLines, margin, yPosition);
+                        yPosition += textLines.length * (fontSize * 0.5) + 5;
+                        return yPosition;
+                    };
+
+                    // Header
+                    addText('FIELD MONITORING REPORT', 16, true);
+                    yPosition += 10;
+
+                    // Basic Information
+                    addText('BASIC INFORMATION', 14, true);
+                    addText(`Monitor: ${formData.monitor || 'N/A'}`);
+                    addText(`Project Name: ${formData.projectName || 'N/A'}`);
+                    addText(`Date: ${formData.date || 'N/A'}`);
+                    addText(`Project Number: ${formData.projectNumber || 'N/A'}`);
+                    yPosition += 5;
+
+                    // GPS Coordinates
+                    addText('GPS COORDINATES', 14, true);
+                    addText(`UTM Easting: ${formData.utmE || 'N/A'}`);
+                    addText(`UTM Northing: ${formData.utmN || 'N/A'}`);
+                    addText(`Latitude: ${formData.latitude || 'N/A'}`);
+                    addText(`Longitude: ${formData.longitude || 'N/A'}`);
+                    addText(`Elevation: ${formData.elevation || 'N/A'}`);
+                    addText(`Number of Artifacts: ${formData.numberOfArtifacts || 'N/A'}`);
+                    yPosition += 5;
+
+                    // Field Observations
+                    addText('FIELD OBSERVATIONS', 14, true);
+                    addText(`Project Areas: ${formData.projectAreas || 'N/A'}`);
+                    
+                    formData.fieldObservations.forEach((obs, index) => {
+                        addText(`Observation ${index + 1}:`, 12, true);
+                        addText(`Type: ${obs.type || 'N/A'}`);
+                        addText(`Location: ${obs.location || 'N/A'}`);
+                        addText(`Depth: ${obs.depth || 'N/A'}`);
+                        addText(`Context: ${obs.context || 'N/A'}`);
+                        addText(`Description: ${obs.description || 'N/A'}`);
+                        addText(`Notes: ${obs.notes || 'N/A'}`);
+                        yPosition += 3;
+                    });
+
+                    addText(`Stratigraphy: ${formData.stratigraphy || 'N/A'}`);
+                    yPosition += 5;
+
+                    // Lithology
+                    addText('LITHOLOGY', 14, true);
+                    addText(`Grain Size: ${formData.grainSize || 'N/A'}`);
+                    addText(`Color: ${formData.color || 'N/A'}`);
+                    addText(`Texture: ${formData.texture || 'N/A'}`);
+                    addText(`Sorting: ${formData.sorting || 'N/A'}`);
+                    addText(`Sediments: ${formData.seds.join(', ') || 'N/A'}`);
+                    addText(`Mineralization: ${formData.mineralization.join(', ') || 'N/A'}`);
+                    yPosition += 5;
+
+                    // Site Conditions
+                    addText('SITE CONDITIONS', 14, true);
+                    addText(`Site Conditions: ${formData.siteConditions || 'N/A'}`);
+                    addText(`Excavation Conditions: ${formData.excavationConditions || 'N/A'}`);
+                    addText(`Other Observations: ${formData.otherObservations || 'N/A'}`);
+                    yPosition += 5;
+
+                    // Map Markers
+                    if (formData.mapData.markers.length > 0) {
+                        addText('MAP MARKERS', 14, true);
+                        formData.mapData.markers.forEach((marker, index) => {
+                            addText(`Marker ${index + 1}: ${marker.type} - ${marker.description || 'No description'}`);
+                            addText(`  Coordinates: ${marker.lat.toFixed(6)}, ${marker.lng.toFixed(6)}`);
+                        });
+                        yPosition += 5;
+                    }
+
+                    // Photo Log Summary
+                    if (formData.photoLog.length > 0) {
+                        addText('PHOTO LOG SUMMARY', 14, true);
+                        formData.photoLog.forEach((photo, index) => {
+                            if (photo.photoNum || photo.description) {
+                                addText(`Photo ${index + 1}: ${photo.photoNum || 'Untitled'}`);
+                                addText(`  Description: ${photo.description || 'No description'}`);
+                                addText(`  Date/Time: ${photo.date || 'N/A'} ${photo.time || ''}`);
+                                addText(`  GPS: ${photo.gps || 'N/A'}`);
+                                addText(`  Direction: ${photo.direction || 'N/A'}`);
+                            }
+                        });
+                    }
+
+                    // Footer
+                    doc.setFontSize(10);
+                    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, doc.internal.pageSize.height - 10);
+
+                    const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(fileName);
+                } catch (error) {
+                    console.error('PDF Export Error:', error);
+                    alert('Error generating PDF file. Please check if all required libraries are loaded.');
+                }
+            };
+
+            const exportToDOC = () => {
+                try {
+                    // Create HTML content for Word document
+                    let htmlContent = `
+                        <html>
+                        <head>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+                                h1 { color: #2d3748; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+                                h2 { color: #4a5568; margin-top: 30px; margin-bottom: 15px; }
+                                h3 { color: #2d3748; margin-top: 20px; margin-bottom: 10px; }
+                                .section { margin-bottom: 25px; }
+                                .field-group { margin-bottom: 10px; }
+                                .field-label { font-weight: bold; color: #4a5568; }
+                                .field-value { margin-left: 10px; }
+                                .observation { border: 1px solid #e2e8f0; padding: 15px; margin: 10px 0; border-radius: 8px; }
+                                .marker { border-left: 4px solid #667eea; padding-left: 10px; margin: 5px 0; }
+                                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                                th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+                                th { background-color: #f7fafc; font-weight: bold; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>🗺️ Field Monitoring Report</h1>
+                            <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                            
+                            <div class="section">
+                                <h2>📋 Basic Information</h2>
+                                <div class="field-group"><span class="field-label">Monitor:</span><span class="field-value">${formData.monitor || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Project Name:</span><span class="field-value">${formData.projectName || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Date:</span><span class="field-value">${formData.date || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Project Number:</span><span class="field-value">${formData.projectNumber || 'N/A'}</span></div>
+                            </div>
+
+                            <div class="section">
+                                <h2>🗺️ GPS Coordinates</h2>
+                                <table>
+                                    <tr><th>UTM Easting</th><td>${formData.utmE || 'N/A'}</td></tr>
+                                    <tr><th>UTM Northing</th><td>${formData.utmN || 'N/A'}</td></tr>
+                                    <tr><th>Latitude</th><td>${formData.latitude || 'N/A'}</td></tr>
+                                    <tr><th>Longitude</th><td>${formData.longitude || 'N/A'}</td></tr>
+                                    <tr><th>Elevation</th><td>${formData.elevation || 'N/A'}</td></tr>
+                                    <tr><th>Number of Artifacts</th><td>${formData.numberOfArtifacts || 'N/A'}</td></tr>
+                                </table>
+                            </div>
+
+                            <div class="section">
+                                <h2>🔍 Field Observations</h2>
+                                <div class="field-group"><span class="field-label">Project Areas Monitored:</span><span class="field-value">${formData.projectAreas || 'N/A'}</span></div>
+                                
+                                <h3>Individual Observations:</h3>
+                                ${formData.fieldObservations.map((obs, index) => `
+                                    <div class="observation">
+                                        <h4>Observation ${index + 1}</h4>
+                                        <div class="field-group"><span class="field-label">Type:</span><span class="field-value">${obs.type || 'N/A'}</span></div>
+                                        <div class="field-group"><span class="field-label">Location:</span><span class="field-value">${obs.location || 'N/A'}</span></div>
+                                        <div class="field-group"><span class="field-label">Depth:</span><span class="field-value">${obs.depth || 'N/A'}</span></div>
+                                        <div class="field-group"><span class="field-label">Context:</span><span class="field-value">${obs.context || 'N/A'}</span></div>
+                                        <div class="field-group"><span class="field-label">Description:</span><span class="field-value">${obs.description || 'N/A'}</span></div>
+                                        <div class="field-group"><span class="field-label">Notes:</span><span class="field-value">${obs.notes || 'N/A'}</span></div>
+                                    </div>
+                                `).join('')}
+                                
+                                <div class="field-group"><span class="field-label">Stratigraphy:</span><span class="field-value">${formData.stratigraphy || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Field Photos:</span><span class="field-value">${formData.fieldPhotos.general.length} photos uploaded</span></div>
+                            </div>
+
+                            <div class="section">
+                                <h2>🗿 Lithology</h2>
+                                <table>
+                                    <tr><th>Grain Size</th><td>${formData.grainSize || 'N/A'}</td></tr>
+                                    <tr><th>Color</th><td>${formData.color || 'N/A'}</td></tr>
+                                    <tr><th>Texture</th><td>${formData.texture || 'N/A'}</td></tr>
+                                    <tr><th>Sorting</th><td>${formData.sorting || 'N/A'}</td></tr>
+                                    <tr><th>Sediments</th><td>${formData.seds.join(', ') || 'N/A'}</td></tr>
+                                    <tr><th>Mineralization</th><td>${formData.mineralization.join(', ') || 'N/A'}</td></tr>
+                                </table>
+                            </div>
+
+                            <div class="section">
+                                <h2>🏗️ Site & Excavation Conditions</h2>
+                                <div class="field-group"><span class="field-label">Site Conditions:</span><span class="field-value">${formData.siteConditions || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Excavation Conditions:</span><span class="field-value">${formData.excavationConditions || 'N/A'}</span></div>
+                                <div class="field-group"><span class="field-label">Other Observations:</span><span class="field-value">${formData.otherObservations || 'N/A'}</span></div>
+                            </div>
+
+                            ${formData.mapData.markers.length > 0 ? `
+                            <div class="section">
+                                <h2>📍 Map Markers (${formData.mapData.markers.length})</h2>
+                                ${formData.mapData.markers.map((marker, index) => `
+                                    <div class="marker">
+                                        <strong>${marker.type.charAt(0).toUpperCase() + marker.type.slice(1)} Marker ${index + 1}</strong><br>
+                                        <span class="field-label">Coordinates:</span> ${marker.lat.toFixed(6)}, ${marker.lng.toFixed(6)}<br>
+                                        <span class="field-label">Description:</span> ${marker.description || 'No description'}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ` : ''}
+
+                            ${formData.photoLog.some(photo => photo.photoNum || photo.description) ? `
+                            <div class="section">
+                                <h2>📸 Photo Log Summary</h2>
+                                <table>
+                                    <tr><th>Photo #</th><th>Date/Time</th><th>GPS</th><th>Direction</th><th>Description</th></tr>
+                                    ${formData.photoLog.map((photo, index) => 
+                                        (photo.photoNum || photo.description) ? `
+                                        <tr>
+                                            <td>${photo.photoNum || `Photo ${index + 1}`}</td>
+                                            <td>${photo.date || 'N/A'} ${photo.time || ''}</td>
+                                            <td>${photo.gps || 'N/A'}</td>
+                                            <td>${photo.direction || 'N/A'}</td>
+                                            <td>${photo.description || 'No description'}</td>
+                                        </tr>
+                                        ` : ''
+                                    ).join('')}
+                                </table>
+                            </div>
+                            ` : ''}
+
+                        </body>
+                        </html>
+                    `;
+
+                    // Convert HTML to Word document
+                    const converted = htmlDocx.asBlob(htmlContent);
+                    const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.docx`;
+                    
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(converted);
+                    link.download = fileName;
+                    link.click();
+                    
+                    // Clean up
+                    URL.revokeObjectURL(link.href);
+                } catch (error) {
+                    console.error('DOC Export Error:', error);
+                    alert('Error generating DOC file. Please check if all required libraries are loaded.');
+                }
+            };
+
             const clearForm = () => {
                 if (confirm('Clear all form data including map markers and photos?')) {
                     setFormData({
@@ -878,6 +1138,12 @@
                         <div className="export-buttons">
                             <button className="btn btn-json" onClick={exportToJSON}>
                                 💾 Export JSON
+                            </button>
+                            <button className="btn btn-json" onClick={exportToPDF} style={{background: '#e53e3e'}}>
+                                📄 Export PDF
+                            </button>
+                            <button className="btn btn-json" onClick={exportToDOC} style={{background: '#2b6cb0'}}>
+                                📝 Export DOC
                             </button>
                             <button className="btn btn-clear" onClick={clearForm}>
                                 🗑️ Clear All
@@ -1593,7 +1859,7 @@
                         <p><strong>✅ Field Observation Photos:</strong> Upload photos directly in the Field Observations section</p>
                         <p><strong>✅ Detailed Photo Log:</strong> Add formal photo entries with complete metadata</p>
                         <p><strong>✅ GPS Integration:</strong> Enter coordinates and center map on specific locations</p>
-                        <p><strong>✅ Comprehensive Export:</strong> All data including photos and map markers exported as JSON</p>
+                        <p><strong>✅ Multiple Export Formats:</strong> JSON (raw data), PDF (formatted report), DOC (editable document)</p>
                         <p className="mt-20">Your complete field monitoring solution for professional archaeological and geological documentation!</p>
                     </div>
                 </div>
