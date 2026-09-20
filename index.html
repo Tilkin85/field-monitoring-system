@@ -9,8 +9,10 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.1/html-docx.js"></script>
+    <script src="vendor/pdf-lib.min.js"></script>
+    <script src="vendor/fontkit.umd.min.js"></script>
+    <script src="vendor/html2canvas.min.js"></script>
+    <script src="report-pdf.js"></script>
     <style>
         * {
             margin: 0;
@@ -445,12 +447,12 @@
             .export-buttons {
                 flex-direction: column;
             }
-            
+
             .grid-2,
             .grid-3 {
                 grid-template-columns: 1fr;
             }
-            
+
             .header h1 {
                 font-size: 2rem;
             }
@@ -471,10 +473,11 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="usability.css" />
 </head>
 <body>
     <div id="root"></div>
-    
+
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
@@ -483,10 +486,15 @@
             const leafletMapRef = useRef(null);
             const [currentTool, setCurrentTool] = useState('marker');
             const [currentMarkerType, setCurrentMarkerType] = useState('site');
-            
-            const [formData, setFormData] = useState({
+            const [exporting, setExporting] = useState(false);
+            const [status, setStatus] = useState('');
+            const [draftStatus, setDraftStatus] = useState('');
+
+            const [formData, setFormData] = useState(() => {
+                const defaults = {
                 // Basic Information
                 monitor: '',
+                projectLocation: '', extraNotes: '', includeMap: true, fieldNumber: '', fieldId: '', datum: '', condition: '', contextDescription: '', approxAge: '', soils: '', location: '', fateOfLocality: '',
                 projectName: '',
                 date: '',
                 projectNumber: '',
@@ -494,7 +502,7 @@
                 totalMi: '',
                 timeIn: '',
                 timeOut: '',
-                
+
                 // Field Observations
                 projectAreas: '',
                 fieldObservations: [{
@@ -507,12 +515,12 @@
                     notes: ''
                 }],
                 stratigraphy: '',
-                
+
                 // Field Observation Photos
                 fieldPhotos: {
                     general: []
                 },
-                
+
                 // Lithology
                 grainSize: '',
                 color: '',
@@ -520,12 +528,12 @@
                 sorting: '',
                 seds: [],
                 mineralization: [],
-                
+
                 // Site Conditions
                 siteConditions: '',
                 excavationConditions: '',
                 otherObservations: '',
-                
+
                 // Coordinates
                 utmE: '',
                 utmN: '',
@@ -533,14 +541,14 @@
                 longitude: '',
                 elevation: '',
                 numberOfArtifacts: '',
-                
+
                 // Map Data
                 mapData: {
                     center: [34.0522, -118.2437],
                     zoom: 10,
                     markers: []
                 },
-                
+
                 // Photo Log
                 photoLog: [{
                     id: 'photo_' + Date.now(),
@@ -554,7 +562,21 @@
                     photoFile: null,
                     photoPreview: null
                 }]
+                };
+                try {
+                    const saved = JSON.parse(localStorage.getItem('ap-monitoring-draft') || 'null');
+                    return saved && saved.mapData && Array.isArray(saved.fieldObservations) ? {...defaults,...saved} : defaults;
+                } catch { return defaults; }
             });
+
+            useEffect(() => {
+                setDraftStatus('Saving draft…');
+                const timer = setTimeout(() => {
+                    try { localStorage.setItem('ap-monitoring-draft', JSON.stringify(formData)); setDraftStatus('Draft saved on this device'); }
+                    catch { setDraftStatus('Draft could not be saved. Download a JSON backup before leaving.'); }
+                }, 700);
+                return () => clearTimeout(timer);
+            }, [formData]);
 
             // Map initialization
             useEffect(() => {
@@ -563,10 +585,15 @@
                         leafletMapRef.current = L.map(mapRef.current).setView(formData.mapData.center, formData.mapData.zoom);
 
                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '© OpenStreetMap contributors'
+                            attribution: '© OpenStreetMap contributors', crossOrigin: 'anonymous'
                         }).addTo(leafletMapRef.current);
 
-                        leafletMapRef.current.on('click', handleMapClick);
+                        leafletMapRef.current.on('moveend', () => {
+                            const map = leafletMapRef.current;
+                            if (!map) return;
+                            const c = map.getCenter();
+                            setFormData(prev => ({...prev, mapData:{...prev.mapData,center:[c.lat,c.lng],zoom:map.getZoom()}}));
+                        });
                     } catch (error) {
                         console.error('Map initialization error:', error);
                     }
@@ -580,6 +607,15 @@
                 };
             }, []);
 
+            useEffect(() => {
+                const map = leafletMapRef.current;
+                if (!map) return;
+                map.on('click', handleMapClick);
+                return () => map.off('click', handleMapClick);
+            }, [currentTool, currentMarkerType]);
+
+
+
             // Update map markers when data changes
             useEffect(() => {
                 if (leafletMapRef.current && formData.mapData.markers) {
@@ -591,22 +627,20 @@
                     });
 
                     // Add markers
-                    formData.mapData.markers.forEach(marker => {
-                        const markerIcon = getMarkerIcon(marker.type);
+                    formData.mapData.markers.forEach((marker, index) => {
+                        const markerIcon = getMarkerIcon(marker.type, index + 1);
                         L.marker([marker.lat, marker.lng], { icon: markerIcon })
                             .addTo(leafletMapRef.current)
-                            .bindPopup(`
-                                <div>
-                                    <strong>${marker.type.charAt(0).toUpperCase() + marker.type.slice(1)}</strong><br>
-                                    ${marker.description}<br>
-                                    <small>Lat: ${marker.lat.toFixed(6)}, Lng: ${marker.lng.toFixed(6)}</small>
-                                </div>
-                            `);
+                            .bindPopup(() => {
+                                const content = document.createElement('div');
+                                content.textContent = marker.type + ': ' + marker.description + ' (' + marker.lat.toFixed(6) + ', ' + marker.lng.toFixed(6) + ')';
+                                return content;
+                            });
                     });
                 }
             }, [formData.mapData]);
 
-            const getMarkerIcon = (type) => {
+            const getMarkerIcon = (type, number) => {
                 const iconColors = {
                     site: '#e53e3e',
                     artifact: '#38a169',
@@ -620,14 +654,16 @@
                     className: 'custom-marker',
                     html: `<div style="
                         background-color: ${iconColors[type] || '#666'};
-                        width: 20px;
-                        height: 20px;
+                        width: 24px;
+                        height: 24px;
+                        display: flex; align-items: center; justify-content: center;
+                        color: white; font-weight: bold; font-size: 12px;
                         border-radius: 50%;
                         border: 2px solid white;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                    "></div>`,
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+                    ">${number}</div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
                 });
             };
 
@@ -671,8 +707,8 @@
             const centerMapOnCoordinates = () => {
                 if (formData.latitude && formData.longitude && leafletMapRef.current) {
                     const lat = parseFloat(formData.latitude);
-                    const lng = parseFloat(formData.longitude);
-                    if (!isNaN(lat) && !isNaN(lng)) {
+                    const lng = -Math.abs(parseFloat(formData.longitude));
+                    if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                         leafletMapRef.current.setView([lat, lng], 15);
                         setFormData(prev => ({
                             ...prev,
@@ -693,7 +729,7 @@
             const handleCheckboxChange = (field, value) => {
                 setFormData(prev => ({
                     ...prev,
-                    [field]: prev[field].includes(value) 
+                    [field]: prev[field].includes(value)
                         ? prev[field].filter(item => item !== value)
                         : [...prev[field], value]
                 }));
@@ -779,7 +815,7 @@
             const handleFieldObservationChange = (obsId, field, value) => {
                 setFormData(prev => ({
                     ...prev,
-                    fieldObservations: prev.fieldObservations.map(obs => 
+                    fieldObservations: prev.fieldObservations.map(obs =>
                         obs.id === obsId ? { ...obs, [field]: value } : obs
                     )
                 }));
@@ -818,11 +854,11 @@
                         timestamp: new Date().toISOString(),
                         data: formData
                     };
-                    
+
                     const dataStr = JSON.stringify(reportData, null, 2);
                     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
                     const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.json`;
-                    
+
                     const link = document.createElement('a');
                     link.href = dataUri;
                     link.download = fileName;
@@ -833,270 +869,40 @@
                 }
             };
 
-            const exportToPDF = () => {
+            const exportToPDF = async () => {
+                if (exporting) return;
+                setExporting(true); setStatus('Preparing your sheet and notes pages…');
                 try {
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    const pageWidth = doc.internal.pageSize.width;
-                    const margin = 20;
-                    let yPosition = margin;
-                    
-                    // Helper function to add text with word wrapping
-                    const addText = (text, fontSize = 11, isBold = false) => {
-                        if (yPosition > 270) {
-                            doc.addPage();
-                            yPosition = margin;
-                        }
-                        doc.setFontSize(fontSize);
-                        if (isBold) doc.setFont(undefined, 'bold');
-                        else doc.setFont(undefined, 'normal');
-                        
-                        const textLines = doc.splitTextToSize(text, pageWidth - 2 * margin);
-                        doc.text(textLines, margin, yPosition);
-                        yPosition += textLines.length * (fontSize * 0.5) + 5;
-                        return yPosition;
-                    };
-
-                    // Header
-                    addText('FIELD MONITORING REPORT', 16, true);
-                    yPosition += 10;
-
-                    // Basic Information
-                    addText('BASIC INFORMATION', 14, true);
-                    addText(`Monitor: ${formData.monitor || 'N/A'}`);
-                    addText(`Project Name: ${formData.projectName || 'N/A'}`);
-                    addText(`Date: ${formData.date || 'N/A'}`);
-                    addText(`Project Number: ${formData.projectNumber || 'N/A'}`);
-                    yPosition += 5;
-
-                    // GPS Coordinates
-                    addText('GPS COORDINATES', 14, true);
-                    addText(`UTM Easting: ${formData.utmE || 'N/A'}`);
-                    addText(`UTM Northing: ${formData.utmN || 'N/A'}`);
-                    addText(`Latitude: ${formData.latitude || 'N/A'}`);
-                    addText(`Longitude: ${formData.longitude || 'N/A'}`);
-                    addText(`Elevation: ${formData.elevation || 'N/A'}`);
-                    addText(`Number of Artifacts: ${formData.numberOfArtifacts || 'N/A'}`);
-                    yPosition += 5;
-
-                    // Field Observations
-                    addText('FIELD OBSERVATIONS', 14, true);
-                    addText(`Project Areas: ${formData.projectAreas || 'N/A'}`);
-                    
-                    formData.fieldObservations.forEach((obs, index) => {
-                        addText(`Observation ${index + 1}:`, 12, true);
-                        addText(`Type: ${obs.type || 'N/A'}`);
-                        addText(`Location: ${obs.location || 'N/A'}`);
-                        addText(`Depth: ${obs.depth || 'N/A'}`);
-                        addText(`Context: ${obs.context || 'N/A'}`);
-                        addText(`Description: ${obs.description || 'N/A'}`);
-                        addText(`Notes: ${obs.notes || 'N/A'}`);
-                        yPosition += 3;
-                    });
-
-                    addText(`Stratigraphy: ${formData.stratigraphy || 'N/A'}`);
-                    yPosition += 5;
-
-                    // Lithology
-                    addText('LITHOLOGY', 14, true);
-                    addText(`Grain Size: ${formData.grainSize || 'N/A'}`);
-                    addText(`Color: ${formData.color || 'N/A'}`);
-                    addText(`Texture: ${formData.texture || 'N/A'}`);
-                    addText(`Sorting: ${formData.sorting || 'N/A'}`);
-                    addText(`Sediments: ${formData.seds.join(', ') || 'N/A'}`);
-                    addText(`Mineralization: ${formData.mineralization.join(', ') || 'N/A'}`);
-                    yPosition += 5;
-
-                    // Site Conditions
-                    addText('SITE CONDITIONS', 14, true);
-                    addText(`Site Conditions: ${formData.siteConditions || 'N/A'}`);
-                    addText(`Excavation Conditions: ${formData.excavationConditions || 'N/A'}`);
-                    addText(`Other Observations: ${formData.otherObservations || 'N/A'}`);
-                    yPosition += 5;
-
-                    // Map Markers
-                    if (formData.mapData.markers.length > 0) {
-                        addText('MAP MARKERS', 14, true);
-                        formData.mapData.markers.forEach((marker, index) => {
-                            addText(`Marker ${index + 1}: ${marker.type} - ${marker.description || 'No description'}`);
-                            addText(`  Coordinates: ${marker.lat.toFixed(6)}, ${marker.lng.toFixed(6)}`);
-                        });
-                        yPosition += 5;
+                    const snapshot = JSON.parse(JSON.stringify(formData));
+                    let mapImage;
+                    if (snapshot.includeMap !== false && mapRef.current && window.html2canvas) {
+                        try {
+                            const tiles = Array.from(mapRef.current.querySelectorAll('img.leaflet-tile'));
+                            if (!tiles.length || tiles.some(t => !t.complete || !t.naturalWidth)) throw new Error('Map tiles not ready');
+                            const canvas = await html2canvas(mapRef.current, {useCORS:true, scale:2, logging:false, imageTimeout:5000});
+                            mapImage = canvas.toDataURL('image/png');
+                        } catch { /* The PDF includes a coordinate plot and complete marker key as a fallback. */ }
                     }
-
-                    // Photo Log Summary
-                    if (formData.photoLog.length > 0) {
-                        addText('PHOTO LOG SUMMARY', 14, true);
-                        formData.photoLog.forEach((photo, index) => {
-                            if (photo.photoNum || photo.description) {
-                                addText(`Photo ${index + 1}: ${photo.photoNum || 'Untitled'}`);
-                                addText(`  Description: ${photo.description || 'No description'}`);
-                                addText(`  Date/Time: ${photo.date || 'N/A'} ${photo.time || ''}`);
-                                addText(`  GPS: ${photo.gps || 'N/A'}`);
-                                addText(`  Direction: ${photo.direction || 'N/A'}`);
-                            }
-                        });
-                    }
-
-                    // Footer
-                    doc.setFontSize(10);
-                    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, doc.internal.pageSize.height - 10);
-
-                    const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.pdf`;
-                    doc.save(fileName);
+                    const bytes = await APReport.build(snapshot, {mapImage});
+                    const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+                    const link = document.createElement('a'); link.href = url;
+                    link.download = 'AP-monitoring-' + (snapshot.date || new Date().toISOString().slice(0,10)) + '.pdf';
+                    document.body.appendChild(link); link.click(); link.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    setStatus('PDF downloaded. The original sheet is first; additional information follows on notes pages.');
                 } catch (error) {
-                    console.error('PDF Export Error:', error);
-                    alert('Error generating PDF file. Please check if all required libraries are loaded.');
-                }
-            };
-
-            const exportToDOC = () => {
-                try {
-                    // Create HTML content for Word document
-                    let htmlContent = `
-                        <html>
-                        <head>
-                            <style>
-                                body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                                h1 { color: #2d3748; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
-                                h2 { color: #4a5568; margin-top: 30px; margin-bottom: 15px; }
-                                h3 { color: #2d3748; margin-top: 20px; margin-bottom: 10px; }
-                                .section { margin-bottom: 25px; }
-                                .field-group { margin-bottom: 10px; }
-                                .field-label { font-weight: bold; color: #4a5568; }
-                                .field-value { margin-left: 10px; }
-                                .observation { border: 1px solid #e2e8f0; padding: 15px; margin: 10px 0; border-radius: 8px; }
-                                .marker { border-left: 4px solid #667eea; padding-left: 10px; margin: 5px 0; }
-                                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                                th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
-                                th { background-color: #f7fafc; font-weight: bold; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>🗺️ Field Monitoring Report</h1>
-                            <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-                            
-                            <div class="section">
-                                <h2>📋 Basic Information</h2>
-                                <div class="field-group"><span class="field-label">Monitor:</span><span class="field-value">${formData.monitor || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Project Name:</span><span class="field-value">${formData.projectName || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Date:</span><span class="field-value">${formData.date || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Project Number:</span><span class="field-value">${formData.projectNumber || 'N/A'}</span></div>
-                            </div>
-
-                            <div class="section">
-                                <h2>🗺️ GPS Coordinates</h2>
-                                <table>
-                                    <tr><th>UTM Easting</th><td>${formData.utmE || 'N/A'}</td></tr>
-                                    <tr><th>UTM Northing</th><td>${formData.utmN || 'N/A'}</td></tr>
-                                    <tr><th>Latitude</th><td>${formData.latitude || 'N/A'}</td></tr>
-                                    <tr><th>Longitude</th><td>${formData.longitude || 'N/A'}</td></tr>
-                                    <tr><th>Elevation</th><td>${formData.elevation || 'N/A'}</td></tr>
-                                    <tr><th>Number of Artifacts</th><td>${formData.numberOfArtifacts || 'N/A'}</td></tr>
-                                </table>
-                            </div>
-
-                            <div class="section">
-                                <h2>🔍 Field Observations</h2>
-                                <div class="field-group"><span class="field-label">Project Areas Monitored:</span><span class="field-value">${formData.projectAreas || 'N/A'}</span></div>
-                                
-                                <h3>Individual Observations:</h3>
-                                ${formData.fieldObservations.map((obs, index) => `
-                                    <div class="observation">
-                                        <h4>Observation ${index + 1}</h4>
-                                        <div class="field-group"><span class="field-label">Type:</span><span class="field-value">${obs.type || 'N/A'}</span></div>
-                                        <div class="field-group"><span class="field-label">Location:</span><span class="field-value">${obs.location || 'N/A'}</span></div>
-                                        <div class="field-group"><span class="field-label">Depth:</span><span class="field-value">${obs.depth || 'N/A'}</span></div>
-                                        <div class="field-group"><span class="field-label">Context:</span><span class="field-value">${obs.context || 'N/A'}</span></div>
-                                        <div class="field-group"><span class="field-label">Description:</span><span class="field-value">${obs.description || 'N/A'}</span></div>
-                                        <div class="field-group"><span class="field-label">Notes:</span><span class="field-value">${obs.notes || 'N/A'}</span></div>
-                                    </div>
-                                `).join('')}
-                                
-                                <div class="field-group"><span class="field-label">Stratigraphy:</span><span class="field-value">${formData.stratigraphy || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Field Photos:</span><span class="field-value">${formData.fieldPhotos.general.length} photos uploaded</span></div>
-                            </div>
-
-                            <div class="section">
-                                <h2>🗿 Lithology</h2>
-                                <table>
-                                    <tr><th>Grain Size</th><td>${formData.grainSize || 'N/A'}</td></tr>
-                                    <tr><th>Color</th><td>${formData.color || 'N/A'}</td></tr>
-                                    <tr><th>Texture</th><td>${formData.texture || 'N/A'}</td></tr>
-                                    <tr><th>Sorting</th><td>${formData.sorting || 'N/A'}</td></tr>
-                                    <tr><th>Sediments</th><td>${formData.seds.join(', ') || 'N/A'}</td></tr>
-                                    <tr><th>Mineralization</th><td>${formData.mineralization.join(', ') || 'N/A'}</td></tr>
-                                </table>
-                            </div>
-
-                            <div class="section">
-                                <h2>🏗️ Site & Excavation Conditions</h2>
-                                <div class="field-group"><span class="field-label">Site Conditions:</span><span class="field-value">${formData.siteConditions || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Excavation Conditions:</span><span class="field-value">${formData.excavationConditions || 'N/A'}</span></div>
-                                <div class="field-group"><span class="field-label">Other Observations:</span><span class="field-value">${formData.otherObservations || 'N/A'}</span></div>
-                            </div>
-
-                            ${formData.mapData.markers.length > 0 ? `
-                            <div class="section">
-                                <h2>📍 Map Markers (${formData.mapData.markers.length})</h2>
-                                ${formData.mapData.markers.map((marker, index) => `
-                                    <div class="marker">
-                                        <strong>${marker.type.charAt(0).toUpperCase() + marker.type.slice(1)} Marker ${index + 1}</strong><br>
-                                        <span class="field-label">Coordinates:</span> ${marker.lat.toFixed(6)}, ${marker.lng.toFixed(6)}<br>
-                                        <span class="field-label">Description:</span> ${marker.description || 'No description'}
-                                    </div>
-                                `).join('')}
-                            </div>
-                            ` : ''}
-
-                            ${formData.photoLog.some(photo => photo.photoNum || photo.description) ? `
-                            <div class="section">
-                                <h2>📸 Photo Log Summary</h2>
-                                <table>
-                                    <tr><th>Photo #</th><th>Date/Time</th><th>GPS</th><th>Direction</th><th>Description</th></tr>
-                                    ${formData.photoLog.map((photo, index) => 
-                                        (photo.photoNum || photo.description) ? `
-                                        <tr>
-                                            <td>${photo.photoNum || `Photo ${index + 1}`}</td>
-                                            <td>${photo.date || 'N/A'} ${photo.time || ''}</td>
-                                            <td>${photo.gps || 'N/A'}</td>
-                                            <td>${photo.direction || 'N/A'}</td>
-                                            <td>${photo.description || 'No description'}</td>
-                                        </tr>
-                                        ` : ''
-                                    ).join('')}
-                                </table>
-                            </div>
-                            ` : ''}
-
-                        </body>
-                        </html>
-                    `;
-
-                    // Convert HTML to Word document
-                    const converted = htmlDocx.asBlob(htmlContent);
-                    const fileName = `field_monitoring_report_${new Date().toISOString().split('T')[0]}.docx`;
-                    
-                    // Create download link
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(converted);
-                    link.download = fileName;
-                    link.click();
-                    
-                    // Clean up
-                    URL.revokeObjectURL(link.href);
-                } catch (error) {
-                    console.error('DOC Export Error:', error);
-                    alert('Error generating DOC file. Please check if all required libraries are loaded.');
-                }
+                    console.error('PDF export failed',error);
+                    setStatus('PDF could not be created. Your entries are still here. Check your connection and try again. ' + error.message);
+                } finally { setExporting(false); }
             };
 
             const clearForm = () => {
                 if (confirm('Clear all form data including map markers and photos?')) {
                     setFormData({
-                        monitor: '', projectName: '', date: '', projectNumber: '',
+                        monitor: '',
+                projectLocation: '', extraNotes: '', includeMap: true, fieldNumber: '', fieldId: '', datum: '', condition: '', contextDescription: '', approxAge: '', soils: '', location: '', fateOfLocality: '', projectName: '', date: '', projectNumber: '',
                         totalHrs: '', totalMi: '', timeIn: '', timeOut: '',
-                        projectAreas: '', 
+                        projectAreas: '',
                         fieldObservations: [{
                             id: 'obs_' + Date.now(),
                             type: 'fossil',
@@ -1105,7 +911,7 @@
                             depth: '',
                             context: '',
                             notes: ''
-                        }], 
+                        }],
                         stratigraphy: '',
                         fieldPhotos: { general: [] },
                         grainSize: '', color: '', texture: '', sorting: '',
@@ -1123,6 +929,7 @@
                             photoFile: null, photoPreview: null
                         }]
                     });
+                    if (leafletMapRef.current) leafletMapRef.current.setView([34.0522, -118.2437], 10);
                 }
             };
 
@@ -1133,49 +940,452 @@
                 <div className="container">
                     {/* Header */}
                     <div className="header">
-                        <h1>🗺️ Field Monitoring System</h1>
-                        <p>Professional archaeological and geological field data collection with mapping and photo capabilities</p>
+                        <div className="eyebrow">ARCHAEOPALEO · FIELD OPERATIONS</div><h1>Daily field report</h1>
+                        <p>Record the day. Keep the details. Download your completed AP sheet.</p>
                         <div className="export-buttons">
-                            <button className="btn btn-json" onClick={exportToJSON}>
-                                💾 Export JSON
+                            <button className="btn primary-export" onClick={exportToPDF} disabled={exporting}>{exporting ? 'Preparing PDF…' : 'Download completed PDF'}</button>
+                            <button className="btn secondary-action" onClick={exportToJSON}>Download JSON backup</button>
+                            <button className="btn secondary-action" onClick={clearForm}>Start new report</button>
+                        </div>
+                        <p className="draft-status" role="status">{draftStatus}</p>
+                    </div>
+                    <div className="report-help">
+                        <strong>Your original AP sheet, filled in.</strong> Additional details, photos, maps, and text that does not fit go on notes pages.
+                        <a href="assets/ap-monitoring-sheet.pdf" target="_blank" rel="noreferrer">View blank sheet</a>
+                    </div>
+                    <nav className="section-nav" aria-label="Report sections">
+                        <a href="#project">1. Project</a><a href="#observations">2. Observations</a><a href="#lithology">3. Geology</a><a href="#conditions">4. Conditions</a><a href="#findings">5. Findings</a><a href="#coordinates">6. Coordinates</a><a href="#map">7. Map</a><a href="#photos">8. Photos</a><a href="#notes">9. Notes & export</a>
+                    </nav>
+                    <p className="export-status" role="status" aria-live="polite">{status}</p>
+
+                    {/* Basic Information */}
+                    <div className="form-section" id="project">
+                        <h2 className="section-title">1. Project & workday</h2>
+                        <div className="form-grid grid-2">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-1">Monitor</label>
+                                <input id="entry-1"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.monitor}
+                                    onChange={(e) => handleInputChange('monitor', e.target.value)}
+                                    placeholder="Enter monitor name"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-2">Project Name</label>
+                                <input id="entry-2"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.projectName}
+                                    onChange={(e) => handleInputChange('projectName', e.target.value)}
+                                    placeholder="Enter project name"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-3">Date</label>
+                                <input id="entry-3"
+                                    type="date"
+                                    className="form-input"
+                                    value={formData.date}
+                                    onChange={(e) => handleInputChange('date', e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-4">Project Number</label>
+                                <input id="entry-4"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.projectNumber}
+                                    onChange={(e) => handleInputChange('projectNumber', e.target.value)}
+                                    placeholder="Enter project number"
+                                />
+                            </div>
+<div className="form-group"><label className="form-label" htmlFor="projectLocation">Project location</label><input id="projectLocation" className="form-input" type="text" value={formData.projectLocation} onChange={e => handleInputChange('projectLocation', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="timeIn">Time in</label><input id="timeIn" className="form-input" type="time" value={formData.timeIn} onChange={e => handleInputChange('timeIn', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="timeOut">Time out</label><input id="timeOut" className="form-input" type="time" value={formData.timeOut} onChange={e => handleInputChange('timeOut', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="totalHrs">Total hours</label><input id="totalHrs" className="form-input" type="number" min="0" step="any" value={formData.totalHrs} onChange={e => handleInputChange('totalHrs', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="totalMi">Total miles</label><input id="totalMi" className="form-input" type="number" min="0" step="any" value={formData.totalMi} onChange={e => handleInputChange('totalMi', e.target.value)} /></div>                        </div>
+                    </div>
+
+                    {/* Field Observations */}
+                    <div className="form-section" id="observations">
+                        <div className="card-header">
+                            <h2 className="section-title">2. Field observations</h2>
+                            <button className="btn btn-json btn-small" onClick={addFieldObservation}>
+                                ➕ Add Field Observation
                             </button>
-                            <button className="btn btn-json" onClick={exportToPDF} style={{background: '#e53e3e'}}>
-                                📄 Export PDF
-                            </button>
-                            <button className="btn btn-json" onClick={exportToDOC} style={{background: '#2b6cb0'}}>
-                                📝 Export DOC
-                            </button>
-                            <button className="btn btn-clear" onClick={clearForm}>
-                                🗑️ Clear All
+                        </div>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-5">Project Areas Monitored</label>
+                                <textarea id="entry-5"
+                                    className="form-textarea"
+                                    value={formData.projectAreas}
+                                    onChange={(e) => handleInputChange('projectAreas', e.target.value)}
+                                    placeholder="Describe the areas monitored during this session"
+                                    rows="3"
+                                />
+                            </div>
+
+                            {/* Individual Field Observations */}
+                            {formData.fieldObservations.map((observation, index) => (
+                                <div key={observation.id} className="card">
+                                    <div className="card-header">
+                                        <h3 className="card-title">Field Observation {index + 1}</h3>
+                                        {formData.fieldObservations.length > 1 && (
+                                            <button
+                                                className="btn btn-clear btn-small"
+                                                onClick={() => removeFieldObservation(observation.id)}
+                                            >
+                                                🗑️ Remove
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="form-grid grid-2">
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor={`entry-6-${observation.id}`}>Observation Type</label>
+                                            <select id={`entry-6-${observation.id}`}
+                                                className="form-select"
+                                                value={observation.type}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'type', e.target.value)}
+                                            >
+                                                <option value="fossil">🦴 Fossil</option>
+                                                <option value="prehistoric">🏺 Prehistoric Artifact/Ecofact</option>
+                                                <option value="historic">📜 Historic Artifact/Ecofact</option>
+                                                <option value="architectural">🏛️ Architectural Feature</option>
+                                                <option value="geological">🗿 Geological Feature</option>
+                                                <option value="disturbance">⚠️ Site Disturbance</option>
+                                                <option value="other">📍 Other</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor={`entry-7-${observation.id}`}>Location/Context</label>
+                                            <input id={`entry-7-${observation.id}`}
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.location}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'location', e.target.value)}
+                                                placeholder="e.g., Grid Square 5A, North wall"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor={`entry-8-${observation.id}`}>Depth/Level</label>
+                                            <input id={`entry-8-${observation.id}`}
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.depth}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'depth', e.target.value)}
+                                                placeholder="e.g., 0-15cm, Level 3"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label" htmlFor={`entry-9-${observation.id}`}>Stratigraphic Context</label>
+                                            <input id={`entry-9-${observation.id}`}
+                                                type="text"
+                                                className="form-input"
+                                                value={observation.context}
+                                                onChange={(e) => handleFieldObservationChange(observation.id, 'context', e.target.value)}
+                                                placeholder="e.g., Clay layer, Feature 12"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label" htmlFor={`entry-10-${observation.id}`}>Detailed Description</label>
+                                        <textarea id={`entry-10-${observation.id}`}
+                                            className="form-textarea"
+                                            value={observation.description}
+                                            onChange={(e) => handleFieldObservationChange(observation.id, 'description', e.target.value)}
+                                            placeholder="Provide detailed description of the finding, condition, size, material, etc."
+                                            rows="3"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label" htmlFor={`entry-11-${observation.id}`}>Additional Notes</label>
+                                        <textarea id={`entry-11-${observation.id}`}
+                                            className="form-textarea"
+                                            value={observation.notes}
+                                            onChange={(e) => handleFieldObservationChange(observation.id, 'notes', e.target.value)}
+                                            placeholder="Any additional observations, measurements, or special notes"
+                                            rows="2"
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-12">General Stratigraphy</label>
+                                <textarea id="entry-12"
+                                    className="form-textarea"
+                                    value={formData.stratigraphy}
+                                    onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
+                                    placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
+                                    rows="3"
+                                />
+                            </div>
+
+                            {/* General Field Observations Photos */}
+                            <div className="form-group">
+                                <label className="form-label">📸 Field Observation Photos</label>
+                                <div className="field-photo-section">
+                                    <div
+                                        className="photo-upload"
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*';
+                                            input.multiple = true;
+                                            input.onchange = (e) => {
+                                                Array.from(e.target.files).forEach(file => {
+                                                    handleFieldPhotoUpload(file);
+                                                });
+                                            };
+                                            input.click();
+                                        }}
+                                    >
+                                        <div style={{fontSize: '48px', marginBottom: '15px'}}>📸</div>
+                                        <div><strong>Click to upload field observation photos</strong></div>
+                                        <p style={{marginTop: '10px', color: '#718096'}}>
+                                            Upload photos related to any of your field observations above
+                                        </p>
+                                        <p style={{fontSize: '14px', color: '#718096', marginTop: '5px'}}>
+                                            You can select multiple files at once • JPG, PNG, GIF supported
+                                        </p>
+                                    </div>
+                                    {formData.fieldPhotos.general.length > 0 && (
+                                        <div>
+                                            <h4 style={{margin: '15px 0 10px 0', color: '#2d3748', fontSize: '16px'}}>
+                                                📷 Uploaded Photos ({formData.fieldPhotos.general.length})
+                                            </h4>
+                                            <div className="field-photos-grid">
+                                                {formData.fieldPhotos.general.map(photo => (
+                                                    <div key={photo.id} className="field-photo-item">
+                                                        <img src={photo.preview} alt="Field observation" />
+                                                        <button
+                                                            className="field-photo-remove"
+                                                            onClick={() => removeFieldPhoto(photo.id)}
+                                                            title="Remove photo"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lithology */}
+                    <div className="form-section" id="lithology">
+                        <h2 className="section-title">3. Lithology & stratigraphy</h2>
+                        <div className="form-grid grid-2 mb-20">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-13">Grain Size</label>
+                                <select id="entry-13"
+                                    className="form-select"
+                                    value={formData.grainSize}
+                                    onChange={(e) => handleInputChange('grainSize', e.target.value)}
+                                >
+                                    <option value="">Select grain size...</option>
+                                    <option value="F">F (Fine)</option>
+                                    <option value="M">M (Medium)</option>
+                                    <option value="C">C (Coarse)</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-14">Color</label>
+                                <input id="entry-14"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.color}
+                                    onChange={(e) => handleInputChange('color', e.target.value)}
+                                    placeholder="e.g., reddish brown, light gray"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-15">Texture</label>
+                                <input id="entry-15"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.texture}
+                                    onChange={(e) => handleInputChange('texture', e.target.value)}
+                                    placeholder="e.g., rough, smooth, granular"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-16">Sorting</label>
+                                <input id="entry-16"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.sorting}
+                                    onChange={(e) => handleInputChange('sorting', e.target.value)}
+                                    placeholder="e.g., well sorted, poorly sorted"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-group mb-20">
+                            <label className="form-label">Sediments</label>
+                            <div className="checkbox-grid">
+                                {sedimentOptions.map(option => (
+                                    <label key={option} className="checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.seds.includes(option)}
+                                            onChange={() => handleCheckboxChange('seds', option)}
+                                        />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Mineralization</label>
+                            <div className="checkbox-grid">
+                                {mineralizationOptions.map(option => (
+                                    <label key={option} className="checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.mineralization.includes(option)}
+                                            onChange={() => handleCheckboxChange('mineralization', option)}
+                                        />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Site Conditions */}
+                    <div className="form-section" id="conditions">
+                        <h2 className="section-title">4. Site & excavation conditions</h2>
+                        <div className="form-grid grid-2 mb-20">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-17">Site Conditions & Personnel</label>
+                                <textarea id="entry-17"
+                                    className="form-textarea"
+                                    value={formData.siteConditions}
+                                    onChange={(e) => handleInputChange('siteConditions', e.target.value)}
+                                    placeholder="non-compliance / hazards / weather / safety concerns / visitors"
+                                    rows="4"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-18">Excavation Conditions</label>
+                                <textarea id="entry-18"
+                                    className="form-textarea"
+                                    value={formData.excavationConditions}
+                                    onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
+                                    placeholder="status / equipment / cuts / access"
+                                    rows="4"
+                                />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="entry-19">Other Observations & Comments</label>
+                            <textarea id="entry-19"
+                                className="form-textarea"
+                                value={formData.otherObservations}
+                                onChange={(e) => handleInputChange('otherObservations', e.target.value)}
+                                placeholder="Additional notes, observations, or comments"
+                                rows="4"
+                            />
+                        </div>
+                    </div>
+
+                    <section className="form-section" id="findings"><h2 className="section-title">5. Findings & locality</h2><p className="section-help">Complete when applicable. The sheet already specifies NAD 83 CONUS; use datum detail for any clarification.</p><div className="form-grid grid-2"><div className="form-group"><label className="form-label" htmlFor="fieldNumber">Field number</label><input id="fieldNumber" className="form-input" type="text" value={formData.fieldNumber} onChange={e => handleInputChange('fieldNumber', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="fieldId">Field ID</label><input id="fieldId" className="form-input" type="text" value={formData.fieldId} onChange={e => handleInputChange('fieldId', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="datum">Datum detail (optional)</label><input id="datum" className="form-input" type="text" value={formData.datum} onChange={e => handleInputChange('datum', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="condition">Condition</label><input id="condition" className="form-input" type="text" value={formData.condition} onChange={e => handleInputChange('condition', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="contextDescription">Artifact/ecofact context description</label><input id="contextDescription" className="form-input" type="text" value={formData.contextDescription} onChange={e => handleInputChange('contextDescription', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="approxAge">Approximate age</label><input id="approxAge" className="form-input" type="text" value={formData.approxAge} onChange={e => handleInputChange('approxAge', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="soils">Soils</label><input id="soils" className="form-input" type="text" value={formData.soils} onChange={e => handleInputChange('soils', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="location">Finding location (pads / cuts / landmarks)</label><input id="location" className="form-input" type="text" value={formData.location} onChange={e => handleInputChange('location', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="fateOfLocality">Fate of locality</label><input id="fateOfLocality" className="form-input" type="text" value={formData.fateOfLocality} onChange={e => handleInputChange('fateOfLocality', e.target.value)} /></div></div></section>
+                    {/* Coordinates Section */}
+                    <div className="form-section" id="coordinates">
+                        <h2 className="section-title">6. Coordinates & counts</h2>
+                        <div className="form-grid grid-3">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-20">UTM Easting</label>
+                                <input id="entry-20"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.utmE}
+                                    onChange={(e) => handleInputChange('utmE', e.target.value)}
+                                    placeholder="e.g., 123456"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-21">UTM Northing</label>
+                                <input id="entry-21"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.utmN}
+                                    onChange={(e) => handleInputChange('utmN', e.target.value)}
+                                    placeholder="e.g., 1234567"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-22">Elevation</label>
+                                <input id="entry-22"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.elevation}
+                                    onChange={(e) => handleInputChange('elevation', e.target.value)}
+                                    placeholder="e.g., 1250 ft"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-23">Latitude N</label>
+                                <input id="entry-23"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.latitude}
+                                    onChange={(e) => handleInputChange('latitude', e.target.value)}
+                                    placeholder="e.g., 34.0522"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-24">Longitude W</label>
+                                <input id="entry-24"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.longitude}
+                                    onChange={(e) => handleInputChange('longitude', e.target.value)}
+                                    placeholder="e.g., -118.2437"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-25">Number of Artifacts</label>
+                                <input id="entry-25"
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.numberOfArtifacts}
+                                    onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
+                                    placeholder="specimens / samples"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-20">
+                            <button
+                                className="btn btn-json"
+                                onClick={centerMapOnCoordinates}
+                                disabled={!formData.latitude || !formData.longitude}
+                            >
+                                🎯 Center Map on These Coordinates
                             </button>
                         </div>
                     </div>
 
-                    {/* Information Alert */}
-                    <div className="alert alert-info">
-                        <h3 className="mb-10">🗺️ System Features</h3>
-                        <p><strong>Interactive Map:</strong> Click on map to add location markers</p>
-                        <p><strong>Field Photos:</strong> Upload photos for field observations and in photo log</p>
-                        <p><strong>GPS Integration:</strong> Enter coordinates and center map</p>
-                        <p className="mt-20">All data including photos and map markers are exported in JSON format.</p>
-                    </div>
-
                     {/* Interactive Map Section */}
-                    <div className="form-section">
-                        <h2 className="section-title">🗺️ Monitoring Area Map</h2>
-                        
+                    <div className="form-section" id="map">
+                        <h2 className="section-title">7. Monitoring area map</h2>
+
                         <div className="map-controls">
                             <div className="form-group mb-15">
                                 <label className="form-label">Map Tools</label>
                                 <div className="map-tools">
-                                    <button 
+                                    <button
                                         className={`tool-btn ${currentTool === 'marker' ? 'active' : ''}`}
                                         onClick={() => setCurrentTool('marker')}
                                     >
                                         📍 Add Markers
                                     </button>
-                                    <select 
-                                        value={currentMarkerType} 
+                                    <select aria-label="Map marker type"
+                                        value={currentMarkerType}
                                         onChange={(e) => setCurrentMarkerType(e.target.value)}
                                         style={{padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0'}}
                                     >
@@ -1186,7 +1396,7 @@
                                         <option value="sample">🧪 Sample</option>
                                         <option value="other">📍 Other</option>
                                     </select>
-                                    <button 
+                                    <button
                                         className="tool-btn"
                                         onClick={centerMapOnCoordinates}
                                         disabled={!formData.latitude || !formData.longitude}
@@ -1249,11 +1459,11 @@
                                     <div key={marker.id} className="marker-item">
                                         <div className="marker-info">
                                             <div className="marker-type">
-                                                {marker.type === 'site' ? '🏛️' : 
+                                                {marker.type === 'site' ? '🏛️' :
                                                  marker.type === 'artifact' ? '🏺' :
                                                  marker.type === 'fossil' ? '🦴' :
                                                  marker.type === 'hazard' ? '⚠️' :
-                                                 marker.type === 'sample' ? '🧪' : '📍'} 
+                                                 marker.type === 'sample' ? '🧪' : '📍'}
                                                 {marker.type.charAt(0).toUpperCase() + marker.type.slice(1)} #{index + 1}
                                             </div>
                                             <div className="marker-coords">
@@ -1263,7 +1473,7 @@
                                                 <div className="marker-description">{marker.description}</div>
                                             )}
                                         </div>
-                                        <button 
+                                        <button
                                             className="btn btn-clear btn-small"
                                             onClick={() => removeMarker(marker.id)}
                                         >
@@ -1275,421 +1485,10 @@
                         )}
                     </div>
 
-                    {/* Basic Information */}
-                    <div className="form-section">
-                        <h2 className="section-title">📋 Basic Information</h2>
-                        <div className="form-grid grid-2">
-                            <div className="form-group">
-                                <label className="form-label">Monitor</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.monitor}
-                                    onChange={(e) => handleInputChange('monitor', e.target.value)}
-                                    placeholder="Enter monitor name"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Project Name</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.projectName}
-                                    onChange={(e) => handleInputChange('projectName', e.target.value)}
-                                    placeholder="Enter project name"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Date</label>
-                                <input
-                                    type="date"
-                                    className="form-input"
-                                    value={formData.date}
-                                    onChange={(e) => handleInputChange('date', e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Project Number</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.projectNumber}
-                                    onChange={(e) => handleInputChange('projectNumber', e.target.value)}
-                                    placeholder="Enter project number"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Coordinates Section */}
-                    <div className="form-section">
-                        <h2 className="section-title">🗺️ GPS Coordinates</h2>
-                        <div className="form-grid grid-3">
-                            <div className="form-group">
-                                <label className="form-label">UTM Easting</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.utmE}
-                                    onChange={(e) => handleInputChange('utmE', e.target.value)}
-                                    placeholder="e.g., 123456"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">UTM Northing</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.utmN}
-                                    onChange={(e) => handleInputChange('utmN', e.target.value)}
-                                    placeholder="e.g., 1234567"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Elevation</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.elevation}
-                                    onChange={(e) => handleInputChange('elevation', e.target.value)}
-                                    placeholder="e.g., 1250 ft"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Latitude N</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.latitude}
-                                    onChange={(e) => handleInputChange('latitude', e.target.value)}
-                                    placeholder="e.g., 34.0522"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Longitude W</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.longitude}
-                                    onChange={(e) => handleInputChange('longitude', e.target.value)}
-                                    placeholder="e.g., -118.2437"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Number of Artifacts</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.numberOfArtifacts}
-                                    onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
-                                    placeholder="specimens / samples"
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-20">
-                            <button 
-                                className="btn btn-json"
-                                onClick={centerMapOnCoordinates}
-                                disabled={!formData.latitude || !formData.longitude}
-                            >
-                                🎯 Center Map on These Coordinates
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Field Observations */}
-                    <div className="form-section">
-                        <div className="card-header">
-                            <h2 className="section-title">🔍 Field Observations</h2>
-                            <button className="btn btn-json btn-small" onClick={addFieldObservation}>
-                                ➕ Add Field Observation
-                            </button>
-                        </div>
-                        <div className="form-grid">
-                            <div className="form-group">
-                                <label className="form-label">Project Areas Monitored</label>
-                                <textarea
-                                    className="form-textarea"
-                                    value={formData.projectAreas}
-                                    onChange={(e) => handleInputChange('projectAreas', e.target.value)}
-                                    placeholder="Describe the areas monitored during this session"
-                                    rows="3"
-                                />
-                            </div>
-
-                            {/* Individual Field Observations */}
-                            {formData.fieldObservations.map((observation, index) => (
-                                <div key={observation.id} className="card">
-                                    <div className="card-header">
-                                        <h3 className="card-title">Field Observation {index + 1}</h3>
-                                        {formData.fieldObservations.length > 1 && (
-                                            <button 
-                                                className="btn btn-clear btn-small"
-                                                onClick={() => removeFieldObservation(observation.id)}
-                                            >
-                                                🗑️ Remove
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="form-grid grid-2">
-                                        <div className="form-group">
-                                            <label className="form-label">Observation Type</label>
-                                            <select
-                                                className="form-select"
-                                                value={observation.type}
-                                                onChange={(e) => handleFieldObservationChange(observation.id, 'type', e.target.value)}
-                                            >
-                                                <option value="fossil">🦴 Fossil</option>
-                                                <option value="prehistoric">🏺 Prehistoric Artifact/Ecofact</option>
-                                                <option value="historic">📜 Historic Artifact/Ecofact</option>
-                                                <option value="architectural">🏛️ Architectural Feature</option>
-                                                <option value="geological">🗿 Geological Feature</option>
-                                                <option value="disturbance">⚠️ Site Disturbance</option>
-                                                <option value="other">📍 Other</option>
-                                            </select>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Location/Context</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                value={observation.location}
-                                                onChange={(e) => handleFieldObservationChange(observation.id, 'location', e.target.value)}
-                                                placeholder="e.g., Grid Square 5A, North wall"
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Depth/Level</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                value={observation.depth}
-                                                onChange={(e) => handleFieldObservationChange(observation.id, 'depth', e.target.value)}
-                                                placeholder="e.g., 0-15cm, Level 3"
-                                            />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Stratigraphic Context</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                value={observation.context}
-                                                onChange={(e) => handleFieldObservationChange(observation.id, 'context', e.target.value)}
-                                                placeholder="e.g., Clay layer, Feature 12"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Detailed Description</label>
-                                        <textarea
-                                            className="form-textarea"
-                                            value={observation.description}
-                                            onChange={(e) => handleFieldObservationChange(observation.id, 'description', e.target.value)}
-                                            placeholder="Provide detailed description of the finding, condition, size, material, etc."
-                                            rows="3"
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Additional Notes</label>
-                                        <textarea
-                                            className="form-textarea"
-                                            value={observation.notes}
-                                            onChange={(e) => handleFieldObservationChange(observation.id, 'notes', e.target.value)}
-                                            placeholder="Any additional observations, measurements, or special notes"
-                                            rows="2"
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-
-                            <div className="form-group">
-                                <label className="form-label">General Stratigraphy</label>
-                                <textarea
-                                    className="form-textarea"
-                                    value={formData.stratigraphy}
-                                    onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
-                                    placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
-                                    rows="3"
-                                />
-                            </div>
-
-                            {/* General Field Observations Photos */}
-                            <div className="form-group">
-                                <label className="form-label">📸 Field Observation Photos</label>
-                                <div className="field-photo-section">
-                                    <div 
-                                        className="photo-upload"
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'image/*';
-                                            input.multiple = true;
-                                            input.onchange = (e) => {
-                                                Array.from(e.target.files).forEach(file => {
-                                                    handleFieldPhotoUpload(file);
-                                                });
-                                            };
-                                            input.click();
-                                        }}
-                                    >
-                                        <div style={{fontSize: '48px', marginBottom: '15px'}}>📸</div>
-                                        <div><strong>Click to upload field observation photos</strong></div>
-                                        <p style={{marginTop: '10px', color: '#718096'}}>
-                                            Upload photos related to any of your field observations above
-                                        </p>
-                                        <p style={{fontSize: '14px', color: '#718096', marginTop: '5px'}}>
-                                            You can select multiple files at once • JPG, PNG, GIF supported
-                                        </p>
-                                    </div>
-                                    {formData.fieldPhotos.general.length > 0 && (
-                                        <div>
-                                            <h4 style={{margin: '15px 0 10px 0', color: '#2d3748', fontSize: '16px'}}>
-                                                📷 Uploaded Photos ({formData.fieldPhotos.general.length})
-                                            </h4>
-                                            <div className="field-photos-grid">
-                                                {formData.fieldPhotos.general.map(photo => (
-                                                    <div key={photo.id} className="field-photo-item">
-                                                        <img src={photo.preview} alt="Field observation" />
-                                                        <button 
-                                                            className="field-photo-remove"
-                                                            onClick={() => removeFieldPhoto(photo.id)}
-                                                            title="Remove photo"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Lithology */}
-                    <div className="form-section">
-                        <h2 className="section-title">🗿 Lithology</h2>
-                        <div className="form-grid grid-2 mb-20">
-                            <div className="form-group">
-                                <label className="form-label">Grain Size</label>
-                                <select
-                                    className="form-select"
-                                    value={formData.grainSize}
-                                    onChange={(e) => handleInputChange('grainSize', e.target.value)}
-                                >
-                                    <option value="">Select grain size...</option>
-                                    <option value="F">F (Fine)</option>
-                                    <option value="M">M (Medium)</option>
-                                    <option value="C">C (Coarse)</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Color</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.color}
-                                    onChange={(e) => handleInputChange('color', e.target.value)}
-                                    placeholder="e.g., reddish brown, light gray"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Texture</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.texture}
-                                    onChange={(e) => handleInputChange('texture', e.target.value)}
-                                    placeholder="e.g., rough, smooth, granular"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Sorting</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.sorting}
-                                    onChange={(e) => handleInputChange('sorting', e.target.value)}
-                                    placeholder="e.g., well sorted, poorly sorted"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group mb-20">
-                            <label className="form-label">Sediments</label>
-                            <div className="checkbox-grid">
-                                {sedimentOptions.map(option => (
-                                    <label key={option} className="checkbox-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.seds.includes(option)}
-                                            onChange={() => handleCheckboxChange('seds', option)}
-                                        />
-                                        <span>{option}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Mineralization</label>
-                            <div className="checkbox-grid">
-                                {mineralizationOptions.map(option => (
-                                    <label key={option} className="checkbox-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.mineralization.includes(option)}
-                                            onChange={() => handleCheckboxChange('mineralization', option)}
-                                        />
-                                        <span>{option}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Site Conditions */}
-                    <div className="form-section">
-                        <h2 className="section-title">🏗️ Site & Excavation Conditions</h2>
-                        <div className="form-grid grid-2 mb-20">
-                            <div className="form-group">
-                                <label className="form-label">Site Conditions & Personnel</label>
-                                <textarea
-                                    className="form-textarea"
-                                    value={formData.siteConditions}
-                                    onChange={(e) => handleInputChange('siteConditions', e.target.value)}
-                                    placeholder="non-compliance / hazards / weather / safety concerns / visitors"
-                                    rows="4"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Excavation Conditions</label>
-                                <textarea
-                                    className="form-textarea"
-                                    value={formData.excavationConditions}
-                                    onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
-                                    placeholder="status / equipment / cuts / access"
-                                    rows="4"
-                                />
-                            </div>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Other Observations & Comments</label>
-                            <textarea
-                                className="form-textarea"
-                                value={formData.otherObservations}
-                                onChange={(e) => handleInputChange('otherObservations', e.target.value)}
-                                placeholder="Additional notes, observations, or comments"
-                                rows="4"
-                            />
-                        </div>
-                    </div>
-
                     {/* Photo Log */}
-                    <div className="form-section">
+                    <div className="form-section" id="photos">
                         <div className="card-header">
-                            <h2 className="section-title">📸 Detailed Photo Log</h2>
+                            <h2 className="section-title">8. Photo log</h2>
                             <button className="btn btn-json btn-small" onClick={addPhotoEntry}>
                                 ➕ Add Photo Entry
                             </button>
@@ -1702,7 +1501,7 @@
                                 <div className="card-header">
                                     <h3 className="card-title">Photo Entry {index + 1}</h3>
                                     {formData.photoLog.length > 1 && (
-                                        <button 
+                                        <button
                                             className="btn btn-clear btn-small"
                                             onClick={() => removePhotoEntry(index)}
                                         >
@@ -1714,7 +1513,7 @@
                                 {/* Photo Upload */}
                                 <div className="mb-20">
                                     {!photo.photoPreview ? (
-                                        <div 
+                                        <div
                                             className="photo-upload"
                                             onClick={() => {
                                                 const input = document.createElement('input');
@@ -1736,7 +1535,7 @@
                                         <div className="text-center">
                                             <img src={photo.photoPreview} alt="Photo preview" className="photo-preview" />
                                             <div className="mt-20">
-                                                <button 
+                                                <button
                                                     className="btn btn-json btn-small"
                                                     onClick={() => {
                                                         const input = document.createElement('input');
@@ -1753,7 +1552,7 @@
                                                 >
                                                     🔄 Replace
                                                 </button>
-                                                <button 
+                                                <button
                                                     className="btn btn-clear btn-small"
                                                     onClick={() => {
                                                         const newPhotoLog = [...formData.photoLog];
@@ -1772,8 +1571,8 @@
                                 {/* Photo Details */}
                                 <div className="form-grid grid-3 mb-15">
                                     <div className="form-group">
-                                        <label className="form-label">Photo Number</label>
-                                        <input
+                                        <label className="form-label" htmlFor={`entry-26-${index}`}>Photo Number</label>
+                                        <input id={`entry-26-${index}`}
                                             type="text"
                                             className="form-input"
                                             value={photo.photoNum}
@@ -1782,8 +1581,8 @@
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Date</label>
-                                        <input
+                                        <label className="form-label" htmlFor={`entry-27-${index}`}>Date</label>
+                                        <input id={`entry-27-${index}`}
                                             type="date"
                                             className="form-input"
                                             value={photo.date}
@@ -1791,8 +1590,8 @@
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Time</label>
-                                        <input
+                                        <label className="form-label" htmlFor={`entry-28-${index}`}>Time</label>
+                                        <input id={`entry-28-${index}`}
                                             type="time"
                                             className="form-input"
                                             value={photo.time}
@@ -1800,8 +1599,8 @@
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">GPS Coordinates</label>
-                                        <input
+                                        <label className="form-label" htmlFor={`entry-29-${index}`}>GPS Coordinates</label>
+                                        <input id={`entry-29-${index}`}
                                             type="text"
                                             className="form-input"
                                             value={photo.gps}
@@ -1810,8 +1609,8 @@
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Cardinal Direction</label>
-                                        <select
+                                        <label className="form-label" htmlFor={`entry-30-${index}`}>Cardinal Direction</label>
+                                        <select id={`entry-30-${index}`}
                                             className="form-select"
                                             value={photo.direction}
                                             onChange={(e) => handlePhotoLogChange(index, 'direction', e.target.value)}
@@ -1828,8 +1627,8 @@
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Equipment Used</label>
-                                        <input
+                                        <label className="form-label" htmlFor={`entry-31-${index}`}>Equipment Used</label>
+                                        <input id={`entry-31-${index}`}
                                             type="text"
                                             className="form-input"
                                             value={photo.equipment}
@@ -1839,8 +1638,8 @@
                                     </div>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Description of Subject</label>
-                                    <textarea
+                                    <label className="form-label" htmlFor={`entry-32-${index}`}>Description of Subject</label>
+                                    <textarea id={`entry-32-${index}`}
                                         className="form-textarea"
                                         value={photo.description}
                                         onChange={(e) => handlePhotoLogChange(index, 'description', e.target.value)}
@@ -1852,16 +1651,16 @@
                         ))}
                     </div>
 
-                    {/* Footer */}
-                    <div className="alert alert-info">
-                        <h3 className="mb-10">🎯 Complete Field Documentation System</h3>
-                        <p><strong>✅ Interactive Mapping:</strong> Click anywhere on the map to add location markers for findings</p>
-                        <p><strong>✅ Field Observation Photos:</strong> Upload photos directly in the Field Observations section</p>
-                        <p><strong>✅ Detailed Photo Log:</strong> Add formal photo entries with complete metadata</p>
-                        <p><strong>✅ GPS Integration:</strong> Enter coordinates and center map on specific locations</p>
-                        <p><strong>✅ Multiple Export Formats:</strong> JSON (raw data), PDF (formatted report), DOC (editable document)</p>
-                        <p className="mt-20">Your complete field monitoring solution for professional archaeological and geological documentation!</p>
-                    </div>
+                    <section className="form-section" id="notes">
+                        <h2 className="section-title">9. Extra notes & export</h2>
+                        <label className="form-label" htmlFor="extraNotes">Extra notes for the attached notes pages</label>
+                        <p className="section-help" id="notes-help">Add anything that does not belong in the printed fields. These notes appear after the original sheet.</p>
+                        <textarea id="extraNotes" aria-describedby="notes-help" className="form-textarea extra-notes" rows="6" value={formData.extraNotes} onChange={e => handleInputChange('extraNotes',e.target.value)} placeholder="Additional context, follow-up actions, map references…" />
+                        <label className="map-export-choice"><input type="checkbox" checked={formData.includeMap} onChange={e => handleInputChange('includeMap',e.target.checked)} /> Include the current map on the notes pages</label>
+                        <p className="section-help">Recorded markers are always included. If the basemap is unavailable, the PDF includes a labeled coordinate plot.</p>
+                        <button className="btn primary-export" disabled={exporting} onClick={exportToPDF}>{exporting ? 'Preparing PDF…' : 'Download completed PDF'}</button>
+                        <p role="status">{status}</p>
+                    </section>
                 </div>
             );
         };
