@@ -20,5 +20,10 @@ test('old drafts move all category descriptions into separate fields without los
 });
 test('new drafts preserve separate selections and free text',()=>{
  const draft={schemaVersion:2,mapData:{markers:[]},fieldObservations:[],stratigraphySelections:['beds','laminations'],stratigraphy:'Thin layers',fossils:'Shells'};
- assert.deepEqual(APForm.restore({},draft),draft);
+ assert.deepEqual(APForm.restore({},draft),{...draft,additionalFindings:[]});
+});
+test('additional findings survive restoration without changing the primary locality',()=>{
+ const saved={schemaVersion:2,mapData:{markers:[]},fieldObservations:[],fieldNumber:'FIRST',additionalFindings:[{id:'second',fieldNumber:'SECOND',location:'Trench 2',utmE:'123'}]};
+ const restored=APForm.restore({},saved);
+ assert.equal(restored.fieldNumber,'FIRST');assert.deepEqual(restored.additionalFindings,saved.additionalFindings);
 });

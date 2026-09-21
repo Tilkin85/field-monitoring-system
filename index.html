@@ -515,7 +515,7 @@
                     context: '',
                     notes: ''
                 }],
-                schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
+                additionalFindings: [], schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
                 stratigraphy: '',
 
                 // Field Observation Photos
@@ -723,6 +723,20 @@
                 }
             };
 
+            const addFinding = () => {
+                const id = 'finding_' + crypto.randomUUID();
+                setFormData(prev => ({...prev, additionalFindings:[...prev.additionalFindings, {id}]}));
+                requestAnimationFrame(() => document.getElementById(id + '-fieldNumber')?.focus());
+            };
+            const changeFinding = (id, key, value) => {
+                setFormData(prev => ({...prev, additionalFindings:prev.additionalFindings.map(f => f.id === id ? {...f,[key]:value} : f)}));
+            };
+            const removeFinding = id => {
+                if (confirm('Remove this additional finding and its locality details?')) {
+                    setFormData(prev => ({...prev, additionalFindings:prev.additionalFindings.filter(f => f.id !== id)}));
+                }
+            };
+
             // Form handlers
             const handleInputChange = (field, value) => {
                 setFormData(prev => ({ ...prev, [field]: value }));
@@ -914,7 +928,7 @@
                             context: '',
                             notes: ''
                         }],
-                        schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
+                        additionalFindings: [], schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
                 stratigraphy: '',
                         fieldPhotos: { general: [] },
                         grainSize: '', color: '', texture: '', sorting: '',
@@ -1092,7 +1106,7 @@
 <section className="sheet-row"><div className="form-group"><label className="form-label" htmlFor="otherObservations">Other observations & comments</label><textarea id="otherObservations" className="form-textarea" value={formData.otherObservations} onChange={e => handleInputChange('otherObservations', e.target.value)} rows="3" /></div>
 </section>
 </section>
-<section className="sheet-row" id="findings"><h2>Findings & locality</h2><div className="findings-identifiers"><div className="form-group"><label className="form-label" htmlFor="fieldNumber">Field number</label><input id="fieldNumber" className="form-input" value={formData.fieldNumber} onChange={e => handleInputChange('fieldNumber', e.target.value)} type="text" /></div>
+<section className="sheet-row" id="findings"><div className="finding-heading"><h2>Findings & locality</h2><button type="button" className="btn btn-json btn-small" onClick={addFinding}><span aria-hidden="true">＋</span> Add Findings & locality</button></div><p className="field-hint">Entry 1 fills the original sheet. Additional entries appear on the notes pages, beginning on page 2.</p><div className="findings-identifiers"><div className="form-group"><label className="form-label" htmlFor="fieldNumber">Field number</label><input id="fieldNumber" className="form-input" value={formData.fieldNumber} onChange={e => handleInputChange('fieldNumber', e.target.value)} type="text" /></div>
 <div className="form-group"><label className="form-label" htmlFor="fieldId">Field ID</label><input id="fieldId" className="form-input" value={formData.fieldId} onChange={e => handleInputChange('fieldId', e.target.value)} type="text" /></div>
 <div className="form-group"><label className="form-label" htmlFor="datum">Datum detail</label><p className="field-hint">NAD 83 CONUS is printed on the sheet.</p><input id="datum" className="form-input" value={formData.datum} onChange={e => handleInputChange('datum', e.target.value)} type="text" /></div>
 </div><div className="form-group"><label className="form-label" htmlFor="condition">Condition</label><p className="field-hint">Poor / fair / good / excellent / damaged / partial / whole</p><input id="condition" className="form-input" value={formData.condition} onChange={e => handleInputChange('condition', e.target.value)} type="text" /></div>
@@ -1109,6 +1123,29 @@
 <div className="form-group"><label className="form-label" htmlFor="elevation">Elevation</label><input id="elevation" className="form-input" value={formData.elevation} onChange={e => handleInputChange('elevation', e.target.value)} type="text" /></div>
 </div><div className="form-group"><label className="form-label" htmlFor="numberOfArtifacts">Number of artifacts / ecofacts</label><p className="field-hint">Specimens / paperbags / boxes / samples / bags of matrix</p><input id="numberOfArtifacts" className="form-input" value={formData.numberOfArtifacts} onChange={e => handleInputChange('numberOfArtifacts', e.target.value)} type="text" /></div>
 </section>
+{formData.additionalFindings.map((finding,index) => (
+<section className="sheet-row additional-finding" key={finding.id} aria-labelledby={finding.id + '-heading'}>
+<div className="finding-heading"><h2 id={finding.id + '-heading'}>Findings & locality {index + 2}</h2><button type="button" className="btn btn-clear btn-small" onClick={() => removeFinding(finding.id)}>Remove entry {index + 2}</button></div>
+<p className="field-hint">Included on the notes pages after the original sheet.</p>
+<div className="form-grid grid-2">
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-fieldNumber'}>Field number</label><input type="text" id={finding.id + '-fieldNumber'} className="form-input" value={finding.fieldNumber || ''} onChange={e => changeFinding(finding.id,'fieldNumber',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-fieldId'}>Field ID</label><input type="text" id={finding.id + '-fieldId'} className="form-input" value={finding.fieldId || ''} onChange={e => changeFinding(finding.id,'fieldId',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-datum'}>Datum</label><input type="text" id={finding.id + '-datum'} className="form-input" value={finding.datum || ''} onChange={e => changeFinding(finding.id,'datum',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-condition'}>Condition</label><input type="text" id={finding.id + '-condition'} className="form-input" value={finding.condition || ''} onChange={e => changeFinding(finding.id,'condition',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-contextDescription'}>Artifact/ecofact context description</label><textarea rows="3" id={finding.id + '-contextDescription'} className="form-textarea" value={finding.contextDescription || ''} onChange={e => changeFinding(finding.id,'contextDescription',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-approxAge'}>Approximate age</label><input type="text" id={finding.id + '-approxAge'} className="form-input" value={finding.approxAge || ''} onChange={e => changeFinding(finding.id,'approxAge',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-soils'}>Soils</label><textarea rows="3" id={finding.id + '-soils'} className="form-textarea" value={finding.soils || ''} onChange={e => changeFinding(finding.id,'soils',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-location'}>Finding location (pads / cuts / landmarks)</label><textarea rows="3" id={finding.id + '-location'} className="form-textarea" value={finding.location || ''} onChange={e => changeFinding(finding.id,'location',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-fateOfLocality'}>Fate of locality</label><input type="text" id={finding.id + '-fateOfLocality'} className="form-input" value={finding.fateOfLocality || ''} onChange={e => changeFinding(finding.id,'fateOfLocality',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-utmE'}>UTM Easting</label><input type="text" id={finding.id + '-utmE'} className="form-input" value={finding.utmE || ''} onChange={e => changeFinding(finding.id,'utmE',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-utmN'}>UTM Northing</label><input type="text" id={finding.id + '-utmN'} className="form-input" value={finding.utmN || ''} onChange={e => changeFinding(finding.id,'utmN',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-latitude'}>Latitude N</label><input type="text" id={finding.id + '-latitude'} className="form-input" value={finding.latitude || ''} onChange={e => changeFinding(finding.id,'latitude',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-longitude'}>Longitude W</label><input type="text" id={finding.id + '-longitude'} className="form-input" value={finding.longitude || ''} onChange={e => changeFinding(finding.id,'longitude',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-elevation'}>Elevation</label><input type="text" id={finding.id + '-elevation'} className="form-input" value={finding.elevation || ''} onChange={e => changeFinding(finding.id,'elevation',e.target.value)} /></div>
+<div className="form-group"><label className="form-label" htmlFor={finding.id + '-numberOfArtifacts'}>Number of artifacts / ecofacts</label><input type="text" id={finding.id + '-numberOfArtifacts'} className="form-input" value={finding.numberOfArtifacts || ''} onChange={e => changeFinding(finding.id,'numberOfArtifacts',e.target.value)} /></div>
+</div></section>
+))}
+{formData.additionalFindings.length > 0 && <div className="sheet-row"><button type="button" className="btn btn-json" onClick={addFinding}><span aria-hidden="true">＋</span> Add Findings & locality</button></div>}
 </div>
 <div className="supplement-heading"><h2>Notes pages & supporting information</h2><p>These details, maps, and photos are attached after the original sheet.</p></div>
                     <details className="form-section supplemental-details" id="observation-details">
