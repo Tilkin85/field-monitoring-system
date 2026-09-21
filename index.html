@@ -13,6 +13,7 @@
     <script src="vendor/fontkit.umd.min.js"></script>
     <script src="vendor/html2canvas.min.js"></script>
     <script src="report-pdf.js"></script>
+    <script src="form-data.js"></script>
     <style>
         * {
             margin: 0;
@@ -514,6 +515,7 @@
                     context: '',
                     notes: ''
                 }],
+                schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
                 stratigraphy: '',
 
                 // Field Observation Photos
@@ -565,7 +567,7 @@
                 };
                 try {
                     const saved = JSON.parse(localStorage.getItem('ap-monitoring-draft') || 'null');
-                    return saved && saved.mapData && Array.isArray(saved.fieldObservations) ? {...defaults,...saved} : defaults;
+                    return APForm.restore(defaults, saved);
                 } catch { return defaults; }
             });
 
@@ -912,7 +914,8 @@
                             context: '',
                             notes: ''
                         }],
-                        stratigraphy: '',
+                        schemaVersion: 2, fossils: '', prehistoricArtifacts: '', historicArtifacts: '', architecturalFeatures: '', stratigraphySelections: [],
+                stratigraphy: '',
                         fieldPhotos: { general: [] },
                         grainSize: '', color: '', texture: '', sorting: '',
                         seds: [], mineralization: [],
@@ -933,6 +936,7 @@
                 }
             };
 
+            const stratigraphyOptions = ['turbidites', 'bioturbation', 'channels', 'beds', 'laminations', 'massive', 'contacts', 'erosional', 'gradational', 'faults', 'slides', 'photos'];
             const sedimentOptions = ['mud/s', 'silt/s', 'sand/s', 'lime/s', 'shale', 'conglomerate', 'breccia', 'concretions'];
             const mineralizationOptions = ['caliche', 'siliceous', 'paleosol', 'alluvium', 'lag deposits'];
 
@@ -954,76 +958,164 @@
                         <a href="assets/ap-monitoring-sheet.pdf" target="_blank" rel="noreferrer">View blank sheet</a>
                     </div>
                     <nav className="section-nav" aria-label="Report sections">
-                        <a href="#project">1. Project</a><a href="#observations">2. Observations</a><a href="#lithology">3. Geology</a><a href="#conditions">4. Conditions</a><a href="#findings">5. Findings</a><a href="#coordinates">6. Coordinates</a><a href="#map">7. Map</a><a href="#photos">8. Photos</a><a href="#notes">9. Notes & export</a>
+                        <a href="#project">Project</a><a href="#observations">Finds</a><a href="#stratigraphy-section">Stratigraphy</a><a href="#lithology">Lithology</a><a href="#conditions">Conditions</a><a href="#findings">Locality</a><a href="#coordinates">Coordinates</a><a href="#map">Map</a><a href="#photos">Photos</a><a href="#notes">Notes & export</a>
                     </nav>
                     <p className="export-status" role="status" aria-live="polite">{status}</p>
 
-                    {/* Basic Information */}
-                    <div className="form-section" id="project">
-                        <h2 className="section-title">1. Project & workday</h2>
-                        <div className="form-grid grid-2">
+                    <div className="paper-form" aria-label="AP monitoring sheet fields">
+                    <section className="sheet-header" id="project">
+                        <div className="sheet-project">
+                            <h2>ArchaeoPaleo Resource Management Inc.</h2>
+                            <p className="sheet-subtitle">DAILY ARCHAEO/PALEO FIELD SUMMARY</p>
+<div className="form-group"><label className="form-label" htmlFor="projectName">Project Name</label><input id="projectName" className="form-input" value={formData.projectName} onChange={e => handleInputChange('projectName', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="projectNumber">Project Number</label><input id="projectNumber" className="form-input" value={formData.projectNumber} onChange={e => handleInputChange('projectNumber', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="projectLocation">Project location</label><input id="projectLocation" className="form-input" value={formData.projectLocation} onChange={e => handleInputChange('projectLocation', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="projectAreas">Project areas monitored</label><p className="field-hint">Number and key on the weekly map.</p><textarea id="projectAreas" className="form-textarea" value={formData.projectAreas} onChange={e => handleInputChange('projectAreas', e.target.value)} rows="2" /></div>
+</div>
+                        <div className="sheet-workday">
+<div className="form-group"><label className="form-label" htmlFor="monitor">Monitor</label><input id="monitor" className="form-input" value={formData.monitor} onChange={e => handleInputChange('monitor', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="date">Date</label><input id="date" className="form-input" value={formData.date} onChange={e => handleInputChange('date', e.target.value)} type="date" /></div>
+<div className="sheet-inline"><div className="form-group"><label className="form-label" htmlFor="totalHrs">Total hours</label><input id="totalHrs" className="form-input" value={formData.totalHrs} onChange={e => handleInputChange('totalHrs', e.target.value)} type="number" min="0" step="any" /></div>
+<div className="form-group"><label className="form-label" htmlFor="totalMi">Total miles</label><input id="totalMi" className="form-input" value={formData.totalMi} onChange={e => handleInputChange('totalMi', e.target.value)} type="number" min="0" step="any" /></div>
+</div><div className="form-group"><label className="form-label" htmlFor="timeIn">Time in</label><input id="timeIn" className="form-input" value={formData.timeIn} onChange={e => handleInputChange('timeIn', e.target.value)} type="time" /></div>
+<div className="form-group"><label className="form-label" htmlFor="timeOut">Time out</label><input id="timeOut" className="form-input" value={formData.timeOut} onChange={e => handleInputChange('timeOut', e.target.value)} type="time" /></div>
+</div>
+                    </section>
+                    <section className="sheet-observations" id="observations" aria-label="Field observations">
+<section className="sheet-row" id="section-fossils"><h2><label htmlFor="fossils">Fossils</label></h2><textarea id="fossils" className="form-textarea" rows="3" value={formData.fossils} onChange={e => handleInputChange('fossils', e.target.value)} /></section>
+<section className="sheet-row" id="section-prehistoricArtifacts"><h2><label htmlFor="prehistoricArtifacts">Prehistoric artifacts / ecofacts</label></h2><textarea id="prehistoricArtifacts" className="form-textarea" rows="3" value={formData.prehistoricArtifacts} onChange={e => handleInputChange('prehistoricArtifacts', e.target.value)} /></section>
+<section className="sheet-row" id="section-historicArtifacts"><h2><label htmlFor="historicArtifacts">Historic artifacts / ecofacts</label></h2><textarea id="historicArtifacts" className="form-textarea" rows="3" value={formData.historicArtifacts} onChange={e => handleInputChange('historicArtifacts', e.target.value)} /></section>
+<section className="sheet-row" id="section-architecturalFeatures"><h2><label htmlFor="architecturalFeatures">Architectural features</label></h2><textarea id="architecturalFeatures" className="form-textarea" rows="3" value={formData.architecturalFeatures} onChange={e => handleInputChange('architecturalFeatures', e.target.value)} /></section>
+                    </section>
+                    <section className="sheet-row" id="stratigraphy-section">
+                        <h2>Stratigraphy</h2>
+                        <fieldset className="stratigraphy-choices">
+                            <legend>Select all that apply</legend>
+                            <div className="checkbox-grid">
+                                {stratigraphyOptions.map(option => (
+                                    <label key={option} className="stratigraphy-option">
+                                        <input type="checkbox" checked={formData.stratigraphySelections.includes(option)} onChange={() => handleCheckboxChange('stratigraphySelections',option)} />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+<div className="form-group"><label className="form-label" htmlFor="stratigraphy">Stratigraphy description / additional details</label><p className="field-hint">Describe layers, contacts, measurements, or anything not covered by the selections.</p><textarea id="stratigraphy" className="form-textarea" value={formData.stratigraphy} onChange={e => handleInputChange('stratigraphy', e.target.value)} rows="3" /></div>
+</section>
+                    {/* Lithology */}
+                    <div className="form-section" id="lithology">
+                        <h2 className="section-title">Lithology</h2>
+                        <div className="form-grid grid-2 mb-20">
                             <div className="form-group">
-                                <label className="form-label" htmlFor="entry-1">Monitor</label>
-                                <input id="entry-1"
+                                <label className="form-label" htmlFor="entry-13">Grain Size</label>
+                                <select id="entry-13"
+                                    className="form-select"
+                                    value={formData.grainSize}
+                                    onChange={(e) => handleInputChange('grainSize', e.target.value)}
+                                >
+                                    <option value="">Select grain size...</option>
+                                    <option value="F">F (Fine)</option>
+                                    <option value="M">M (Medium)</option>
+                                    <option value="C">C (Coarse)</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="entry-14">Color</label>
+                                <input id="entry-14"
                                     type="text"
                                     className="form-input"
-                                    value={formData.monitor}
-                                    onChange={(e) => handleInputChange('monitor', e.target.value)}
-                                    placeholder="Enter monitor name"
+                                    value={formData.color}
+                                    onChange={(e) => handleInputChange('color', e.target.value)}
+                                    placeholder="e.g., reddish brown, light gray"
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label" htmlFor="entry-2">Project Name</label>
-                                <input id="entry-2"
+                                <label className="form-label" htmlFor="entry-15">Texture</label>
+                                <input id="entry-15"
                                     type="text"
                                     className="form-input"
-                                    value={formData.projectName}
-                                    onChange={(e) => handleInputChange('projectName', e.target.value)}
-                                    placeholder="Enter project name"
+                                    value={formData.texture}
+                                    onChange={(e) => handleInputChange('texture', e.target.value)}
+                                    placeholder="e.g., rough, smooth, granular"
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label" htmlFor="entry-3">Date</label>
-                                <input id="entry-3"
-                                    type="date"
-                                    className="form-input"
-                                    value={formData.date}
-                                    onChange={(e) => handleInputChange('date', e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-4">Project Number</label>
-                                <input id="entry-4"
+                                <label className="form-label" htmlFor="entry-16">Sorting</label>
+                                <input id="entry-16"
                                     type="text"
                                     className="form-input"
-                                    value={formData.projectNumber}
-                                    onChange={(e) => handleInputChange('projectNumber', e.target.value)}
-                                    placeholder="Enter project number"
+                                    value={formData.sorting}
+                                    onChange={(e) => handleInputChange('sorting', e.target.value)}
+                                    placeholder="e.g., well sorted, poorly sorted"
                                 />
                             </div>
-<div className="form-group"><label className="form-label" htmlFor="projectLocation">Project location</label><input id="projectLocation" className="form-input" type="text" value={formData.projectLocation} onChange={e => handleInputChange('projectLocation', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="timeIn">Time in</label><input id="timeIn" className="form-input" type="time" value={formData.timeIn} onChange={e => handleInputChange('timeIn', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="timeOut">Time out</label><input id="timeOut" className="form-input" type="time" value={formData.timeOut} onChange={e => handleInputChange('timeOut', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="totalHrs">Total hours</label><input id="totalHrs" className="form-input" type="number" min="0" step="any" value={formData.totalHrs} onChange={e => handleInputChange('totalHrs', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="totalMi">Total miles</label><input id="totalMi" className="form-input" type="number" min="0" step="any" value={formData.totalMi} onChange={e => handleInputChange('totalMi', e.target.value)} /></div>                        </div>
+                        </div>
+
+                        <div className="form-group mb-20">
+                            <label className="form-label">Sediments</label>
+                            <div className="checkbox-grid">
+                                {sedimentOptions.map(option => (
+                                    <label key={option} className="checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.seds.includes(option)}
+                                            onChange={() => handleCheckboxChange('seds', option)}
+                                        />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Mineralization</label>
+                            <div className="checkbox-grid">
+                                {mineralizationOptions.map(option => (
+                                    <label key={option} className="checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.mineralization.includes(option)}
+                                            onChange={() => handleCheckboxChange('mineralization', option)}
+                                        />
+                                        <span>{option}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Field Observations */}
-                    <div className="form-section" id="observations">
-                        <div className="card-header">
-                            <h2 className="section-title">2. Field observations</h2>
-                            <button className="btn btn-json btn-small" onClick={addFieldObservation}>
-                                ➕ Add Field Observation
-                            </button>
-                        </div>
+<section id="conditions" aria-label="Site conditions and comments">
+<section className="sheet-row"><div className="form-group"><label className="form-label" htmlFor="siteConditions">Site conditions & personnel</label><textarea id="siteConditions" className="form-textarea" value={formData.siteConditions} onChange={e => handleInputChange('siteConditions', e.target.value)} rows="3" /></div>
+</section>
+<section className="sheet-row"><div className="form-group"><label className="form-label" htmlFor="excavationConditions">Excavation conditions</label><textarea id="excavationConditions" className="form-textarea" value={formData.excavationConditions} onChange={e => handleInputChange('excavationConditions', e.target.value)} rows="3" /></div>
+</section>
+<section className="sheet-row"><div className="form-group"><label className="form-label" htmlFor="otherObservations">Other observations & comments</label><textarea id="otherObservations" className="form-textarea" value={formData.otherObservations} onChange={e => handleInputChange('otherObservations', e.target.value)} rows="3" /></div>
+</section>
+</section>
+<section className="sheet-row" id="findings"><h2>Findings & locality</h2><div className="findings-identifiers"><div className="form-group"><label className="form-label" htmlFor="fieldNumber">Field number</label><input id="fieldNumber" className="form-input" value={formData.fieldNumber} onChange={e => handleInputChange('fieldNumber', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="fieldId">Field ID</label><input id="fieldId" className="form-input" value={formData.fieldId} onChange={e => handleInputChange('fieldId', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="datum">Datum detail</label><p className="field-hint">NAD 83 CONUS is printed on the sheet.</p><input id="datum" className="form-input" value={formData.datum} onChange={e => handleInputChange('datum', e.target.value)} type="text" /></div>
+</div><div className="form-group"><label className="form-label" htmlFor="condition">Condition</label><p className="field-hint">Poor / fair / good / excellent / damaged / partial / whole</p><input id="condition" className="form-input" value={formData.condition} onChange={e => handleInputChange('condition', e.target.value)} type="text" /></div>
+<div className="context-age"><div className="form-group"><label className="form-label" htmlFor="contextDescription">Artifact/ecofact context description</label><input id="contextDescription" className="form-input" value={formData.contextDescription} onChange={e => handleInputChange('contextDescription', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="approxAge">Approximate age</label><input id="approxAge" className="form-input" value={formData.approxAge} onChange={e => handleInputChange('approxAge', e.target.value)} type="text" /></div>
+</div><div className="form-group"><label className="form-label" htmlFor="soils">Soils</label><input id="soils" className="form-input" value={formData.soils} onChange={e => handleInputChange('soils', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="location">Finding location (pads / cuts / landmarks)</label><input id="location" className="form-input" value={formData.location} onChange={e => handleInputChange('location', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="fateOfLocality">Fate of locality</label><p className="field-hint">Accessible / buried / graded away</p><input id="fateOfLocality" className="form-input" value={formData.fateOfLocality} onChange={e => handleInputChange('fateOfLocality', e.target.value)} type="text" /></div>
+</section>
+<section className="sheet-row" id="coordinates"><h2>Coordinates</h2><div className="coordinate-fields"><div className="form-group"><label className="form-label" htmlFor="utmE">UTM Easting</label><input id="utmE" className="form-input" value={formData.utmE} onChange={e => handleInputChange('utmE', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="utmN">UTM Northing</label><input id="utmN" className="form-input" value={formData.utmN} onChange={e => handleInputChange('utmN', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="latitude">Latitude N</label><input id="latitude" className="form-input" value={formData.latitude} onChange={e => handleInputChange('latitude', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="longitude">Longitude W</label><input id="longitude" className="form-input" value={formData.longitude} onChange={e => handleInputChange('longitude', e.target.value)} type="text" /></div>
+<div className="form-group"><label className="form-label" htmlFor="elevation">Elevation</label><input id="elevation" className="form-input" value={formData.elevation} onChange={e => handleInputChange('elevation', e.target.value)} type="text" /></div>
+</div><div className="form-group"><label className="form-label" htmlFor="numberOfArtifacts">Number of artifacts / ecofacts</label><p className="field-hint">Specimens / paperbags / boxes / samples / bags of matrix</p><input id="numberOfArtifacts" className="form-input" value={formData.numberOfArtifacts} onChange={e => handleInputChange('numberOfArtifacts', e.target.value)} type="text" /></div>
+</section>
+</div>
+<div className="supplement-heading"><h2>Notes pages & supporting information</h2><p>These details, maps, and photos are attached after the original sheet.</p></div>
+                    <details className="form-section supplemental-details" id="observation-details">
+                        <summary>Additional observation details & field photos</summary>
+                        <p className="section-help">Optional location, depth, context, and photos for the notes pages. Earlier saved observation details are kept here. Descriptions in the four sheet categories supplement their fields above.</p>
+                        <button className="btn btn-json btn-small" onClick={addFieldObservation}>Add Field Observation</button>
                         <div className="form-grid">
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-5">Project Areas Monitored</label>
-                                <textarea id="entry-5"
-                                    className="form-textarea"
-                                    value={formData.projectAreas}
-                                    onChange={(e) => handleInputChange('projectAreas', e.target.value)}
-                                    placeholder="Describe the areas monitored during this session"
-                                    rows="3"
-                                />
-                            </div>
-
                             {/* Individual Field Observations */}
                             {formData.fieldObservations.map((observation, index) => (
                                 <div key={observation.id} className="card">
@@ -1109,17 +1201,6 @@
                                 </div>
                             ))}
 
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-12">General Stratigraphy</label>
-                                <textarea id="entry-12"
-                                    className="form-textarea"
-                                    value={formData.stratigraphy}
-                                    onChange={(e) => handleInputChange('stratigraphy', e.target.value)}
-                                    placeholder="turbidites / bioturbation / channels / beds / laminations / massive / contacts / erosional gradational / faults / slides / photos"
-                                    rows="3"
-                                />
-                            </div>
-
                             {/* General Field Observations Photos */}
                             <div className="form-group">
                                 <label className="form-label">📸 Field Observation Photos</label>
@@ -1171,208 +1252,11 @@
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Lithology */}
-                    <div className="form-section" id="lithology">
-                        <h2 className="section-title">3. Lithology & stratigraphy</h2>
-                        <div className="form-grid grid-2 mb-20">
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-13">Grain Size</label>
-                                <select id="entry-13"
-                                    className="form-select"
-                                    value={formData.grainSize}
-                                    onChange={(e) => handleInputChange('grainSize', e.target.value)}
-                                >
-                                    <option value="">Select grain size...</option>
-                                    <option value="F">F (Fine)</option>
-                                    <option value="M">M (Medium)</option>
-                                    <option value="C">C (Coarse)</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-14">Color</label>
-                                <input id="entry-14"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.color}
-                                    onChange={(e) => handleInputChange('color', e.target.value)}
-                                    placeholder="e.g., reddish brown, light gray"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-15">Texture</label>
-                                <input id="entry-15"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.texture}
-                                    onChange={(e) => handleInputChange('texture', e.target.value)}
-                                    placeholder="e.g., rough, smooth, granular"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-16">Sorting</label>
-                                <input id="entry-16"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.sorting}
-                                    onChange={(e) => handleInputChange('sorting', e.target.value)}
-                                    placeholder="e.g., well sorted, poorly sorted"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group mb-20">
-                            <label className="form-label">Sediments</label>
-                            <div className="checkbox-grid">
-                                {sedimentOptions.map(option => (
-                                    <label key={option} className="checkbox-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.seds.includes(option)}
-                                            onChange={() => handleCheckboxChange('seds', option)}
-                                        />
-                                        <span>{option}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Mineralization</label>
-                            <div className="checkbox-grid">
-                                {mineralizationOptions.map(option => (
-                                    <label key={option} className="checkbox-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.mineralization.includes(option)}
-                                            onChange={() => handleCheckboxChange('mineralization', option)}
-                                        />
-                                        <span>{option}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Site Conditions */}
-                    <div className="form-section" id="conditions">
-                        <h2 className="section-title">4. Site & excavation conditions</h2>
-                        <div className="form-grid grid-2 mb-20">
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-17">Site Conditions & Personnel</label>
-                                <textarea id="entry-17"
-                                    className="form-textarea"
-                                    value={formData.siteConditions}
-                                    onChange={(e) => handleInputChange('siteConditions', e.target.value)}
-                                    placeholder="non-compliance / hazards / weather / safety concerns / visitors"
-                                    rows="4"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-18">Excavation Conditions</label>
-                                <textarea id="entry-18"
-                                    className="form-textarea"
-                                    value={formData.excavationConditions}
-                                    onChange={(e) => handleInputChange('excavationConditions', e.target.value)}
-                                    placeholder="status / equipment / cuts / access"
-                                    rows="4"
-                                />
-                            </div>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="entry-19">Other Observations & Comments</label>
-                            <textarea id="entry-19"
-                                className="form-textarea"
-                                value={formData.otherObservations}
-                                onChange={(e) => handleInputChange('otherObservations', e.target.value)}
-                                placeholder="Additional notes, observations, or comments"
-                                rows="4"
-                            />
-                        </div>
-                    </div>
-
-                    <section className="form-section" id="findings"><h2 className="section-title">5. Findings & locality</h2><p className="section-help">Complete when applicable. The sheet already specifies NAD 83 CONUS; use datum detail for any clarification.</p><div className="form-grid grid-2"><div className="form-group"><label className="form-label" htmlFor="fieldNumber">Field number</label><input id="fieldNumber" className="form-input" type="text" value={formData.fieldNumber} onChange={e => handleInputChange('fieldNumber', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="fieldId">Field ID</label><input id="fieldId" className="form-input" type="text" value={formData.fieldId} onChange={e => handleInputChange('fieldId', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="datum">Datum detail (optional)</label><input id="datum" className="form-input" type="text" value={formData.datum} onChange={e => handleInputChange('datum', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="condition">Condition</label><input id="condition" className="form-input" type="text" value={formData.condition} onChange={e => handleInputChange('condition', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="contextDescription">Artifact/ecofact context description</label><input id="contextDescription" className="form-input" type="text" value={formData.contextDescription} onChange={e => handleInputChange('contextDescription', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="approxAge">Approximate age</label><input id="approxAge" className="form-input" type="text" value={formData.approxAge} onChange={e => handleInputChange('approxAge', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="soils">Soils</label><input id="soils" className="form-input" type="text" value={formData.soils} onChange={e => handleInputChange('soils', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="location">Finding location (pads / cuts / landmarks)</label><input id="location" className="form-input" type="text" value={formData.location} onChange={e => handleInputChange('location', e.target.value)} /></div><div className="form-group"><label className="form-label" htmlFor="fateOfLocality">Fate of locality</label><input id="fateOfLocality" className="form-input" type="text" value={formData.fateOfLocality} onChange={e => handleInputChange('fateOfLocality', e.target.value)} /></div></div></section>
-                    {/* Coordinates Section */}
-                    <div className="form-section" id="coordinates">
-                        <h2 className="section-title">6. Coordinates & counts</h2>
-                        <div className="form-grid grid-3">
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-20">UTM Easting</label>
-                                <input id="entry-20"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.utmE}
-                                    onChange={(e) => handleInputChange('utmE', e.target.value)}
-                                    placeholder="e.g., 123456"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-21">UTM Northing</label>
-                                <input id="entry-21"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.utmN}
-                                    onChange={(e) => handleInputChange('utmN', e.target.value)}
-                                    placeholder="e.g., 1234567"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-22">Elevation</label>
-                                <input id="entry-22"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.elevation}
-                                    onChange={(e) => handleInputChange('elevation', e.target.value)}
-                                    placeholder="e.g., 1250 ft"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-23">Latitude N</label>
-                                <input id="entry-23"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.latitude}
-                                    onChange={(e) => handleInputChange('latitude', e.target.value)}
-                                    placeholder="e.g., 34.0522"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-24">Longitude W</label>
-                                <input id="entry-24"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.longitude}
-                                    onChange={(e) => handleInputChange('longitude', e.target.value)}
-                                    placeholder="e.g., -118.2437"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label" htmlFor="entry-25">Number of Artifacts</label>
-                                <input id="entry-25"
-                                    type="text"
-                                    className="form-input"
-                                    value={formData.numberOfArtifacts}
-                                    onChange={(e) => handleInputChange('numberOfArtifacts', e.target.value)}
-                                    placeholder="specimens / samples"
-                                />
-                            </div>
-                        </div>
-                        <div className="mt-20">
-                            <button
-                                className="btn btn-json"
-                                onClick={centerMapOnCoordinates}
-                                disabled={!formData.latitude || !formData.longitude}
-                            >
-                                🎯 Center Map on These Coordinates
-                            </button>
-                        </div>
-                    </div>
-
+</div>
+                    </details>
                     {/* Interactive Map Section */}
                     <div className="form-section" id="map">
-                        <h2 className="section-title">7. Monitoring area map</h2>
+                        <h2 className="section-title">Monitoring area map</h2>
 
                         <div className="map-controls">
                             <div className="form-group mb-15">
@@ -1488,7 +1372,7 @@
                     {/* Photo Log */}
                     <div className="form-section" id="photos">
                         <div className="card-header">
-                            <h2 className="section-title">8. Photo log</h2>
+                            <h2 className="section-title">Photo log</h2>
                             <button className="btn btn-json btn-small" onClick={addPhotoEntry}>
                                 ➕ Add Photo Entry
                             </button>
@@ -1652,7 +1536,7 @@
                     </div>
 
                     <section className="form-section" id="notes">
-                        <h2 className="section-title">9. Extra notes & export</h2>
+                        <h2 className="section-title">Extra notes & export</h2>
                         <label className="form-label" htmlFor="extraNotes">Extra notes for the attached notes pages</label>
                         <p className="section-help" id="notes-help">Add anything that does not belong in the printed fields. These notes appear after the original sheet.</p>
                         <textarea id="extraNotes" aria-describedby="notes-help" className="form-textarea extra-notes" rows="6" value={formData.extraNotes} onChange={e => handleInputChange('extraNotes',e.target.value)} placeholder="Additional context, follow-up actions, map references…" />

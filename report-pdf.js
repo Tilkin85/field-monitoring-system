@@ -40,6 +40,9 @@
     const ink = rgb(0.07,0.16,0.22);
     const additions = [];
     const values = {...data};
+    values.stratigraphy = [
+      (data.stratigraphySelections || []).join(' / '), data.stratigraphy
+    ].filter(Boolean).join('; ');
     const categories = {fossil:'fossils',prehistoric:'prehistoricArtifacts',historic:'historicArtifacts',architectural:'architecturalFeatures'};
     for (const [type,key] of Object.entries(categories)) {
       values[key] = [data[key],...(data.fieldObservations || []).filter(o=>o.type===type).map(o=>o.description)].filter(Boolean).join('; ');
