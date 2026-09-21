@@ -9,6 +9,7 @@
     if (!saved || !saved.mapData || !Array.isArray(saved.fieldObservations)) return defaults;
     const data = {...defaults, ...saved};
     data.stratigraphySelections = Array.isArray(saved.stratigraphySelections) ? saved.stratigraphySelections : [];
+    data.additionalFindings = Array.isArray(saved.additionalFindings) ? saved.additionalFindings : [];
     data.schemaVersion = 2;
     if (saved.schemaVersion >= 2) return data;
     data.fieldObservations = saved.fieldObservations.map(observation => {

@@ -94,6 +94,12 @@
       for (const line of wrap(value,528,font,10)) { if(y>728)newPage(); text(page,line,42,y,10);y+=15; }
       y+=14;
     }
+    // Additional localities start on page two, before other notes and attachments.
+    const findingKeys = ['fieldNumber','fieldId','datum','condition','contextDescription','approxAge','soils','location','fateOfLocality','utmE','utmN','latitude','longitude','elevation','numberOfArtifacts'];
+    for (const [i,finding] of (data.additionalFindings || []).entries()) {
+      const details = findingKeys.filter(key => str(finding[key]).trim()).map(key => labels[key] + ': ' + str(finding[key]));
+      if (details.length) block('Findings & locality '+(i+2),details.join('\n'));
+    }
     for(const [label,value] of additions) block(label+' (continued from sheet)',value);
     block('Extra notes',data.extraNotes);
     for(const [i,o] of (data.fieldObservations||[]).entries()) {

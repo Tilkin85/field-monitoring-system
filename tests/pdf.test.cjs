@@ -26,3 +26,13 @@ test('long header fields cannot consume the notes-page body',async()=>{
  const pdf=await PDFLib.PDFDocument.load(await APReport.build({projectName:'long-name '.repeat(400),monitor:'M'.repeat(400),extraNotes:'Last note',includeMap:false},options));
  assert(pdf.getPageCount()>1 && pdf.getPageCount()<20);
 });
+test('additional localities append pages without altering first-page drawing streams',async()=>{
+ const data={fieldNumber:'FIRST-001',includeMap:false};
+ const first=await PDFLib.PDFDocument.load(await APReport.build(data,options));
+ const extra=await PDFLib.PDFDocument.load(await APReport.build({...data,additionalFindings:[{fieldNumber:'SECOND-002',location:'Trench B',utmE:'385250'},{fieldNumber:'THIRD-003',numberOfArtifacts:'2 samples'}]},options));
+ assert.equal(first.getPageCount(),1);assert.equal(extra.getPageCount(),2);
+ const streams=doc=>doc.getPages()[0].node.Contents().asArray().map(ref=>Buffer.from(doc.context.lookup(ref).getContents()));
+ assert.deepEqual(streams(extra),streams(first));
+ const blank=await PDFLib.PDFDocument.load(await APReport.build({...data,additionalFindings:[{id:'blank'}]},options));
+ assert.equal(blank.getPageCount(),1);
+});

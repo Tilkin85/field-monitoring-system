@@ -59,6 +59,10 @@ button:disabled { opacity:.6; cursor:wait; transform:none; }
 .supplemental-details > summary { font-size:18px; font-weight:700; cursor:pointer; }
 .supplemental-details[open] > summary { margin-bottom:16px; }
 .supplemental-details > button { margin-bottom:16px; }
+.finding-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+.finding-heading h2 { margin:0; }
+.finding-heading button span { font-size:23px; line-height:1; }
+.additional-finding { background:#f7faf5; }
 @media(max-width:760px) {
   .sheet-header { grid-template-columns:1fr; }
   .sheet-workday { border-left:0; border-top:1px solid #53695e; }

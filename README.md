@@ -16,6 +16,8 @@ The current draft saves in this browser on this device. Photos can exceed browse
 
 Stratigraphy has multiple-choice selections and a separate free-text description; both are included in the PDF. Earlier saved drafts are migrated into the four category fields once, with location, depth, context, notes, and photos preserved in the supplemental section.
 
+Use **＋ Add Findings & locality** for each additional locality, including its own coordinates and artifact count. Entry 1 remains on the original sheet. Completed additional entries begin on PDF page 2, before other notes; longer entries continue onto further pages. Blank additional entries do not create empty PDF sections. You can remove an additional entry after confirmation. All entries are saved in the draft and JSON backup.
+
 ## PDF behavior
 
 - `assets/ap-monitoring-sheet.pdf` is an unchanged copy of the supplied **AP MONITORING SHEET.pdf**. Do not replace or redraw it when adjusting the site.
