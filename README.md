@@ -7,12 +7,14 @@ Live site: https://Tilkin85.github.io/field-monitoring-system/
 ## Field workflow
 
 1. Enter the project, monitor, date, work times, hours, and mileage.
-2. Use the numbered section links to record observations, geology, conditions, findings, coordinates, map markers, and photos.
+2. Follow the PDF-style form: project/workday header, separate fossils, prehistoric artifacts/ecofacts, historic artifacts/ecofacts, architectural features, stratigraphy, lithology, conditions, findings, and coordinates. Use section links to jump between them.
 3. Add anything else in **Extra notes & export**.
 4. Choose **Download completed PDF**. The supplied AP monitoring sheet is page one. Notes, overflow, observation details, photos, and maps follow on supporting pages.
 5. Use **Download JSON backup** to keep a machine-readable copy of all entered information. **Start new report** clears the current draft after confirmation.
 
 The current draft saves in this browser on this device. Photos can exceed browser storage limits; the page reports a failed save and asks you to download a backup. Drafts do not sync between devices. Keep downloaded copies before clearing browser data.
+
+Stratigraphy has multiple-choice selections and a separate free-text description; both are included in the PDF. Earlier saved drafts are migrated into the four category fields once, with location, depth, context, notes, and photos preserved in the supplemental section.
 
 ## PDF behavior
 
@@ -33,7 +35,7 @@ The deployed app is in `index.html`; `app.js` is a legacy, unused implementation
 Run the dependency-free PDF regression checks with Node 18 or later:
 
 ```sh
-node --test tests/pdf.test.cjs
+node --test tests/pdf.test.cjs tests/form-data.test.cjs
 ```
 
 The checks cover original page content preservation, pagination, overflow, marker fallback, images, and unusually long project headers. For visual verification, export a representative completed form and render it at print resolution. A blank export with maps disabled should render identically to the source sheet.

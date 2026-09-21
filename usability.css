@@ -18,7 +18,7 @@ body { background:#f1f4f0; color:var(--ink); }
 .section-nav a:hover,.section-nav a:focus { background:#dce8db; }
 .form-section { box-shadow:none; border:1px solid #dce4dd; padding:26px; margin-bottom:20px; scroll-margin-top:88px; }
 .section-title { color:var(--ink); font-size:21px; border-bottom:1px solid #e2e9e3; padding-bottom:16px; }
-.form-input,.form-select,.form-textarea { background:#fcfdfb; border:1px solid #bccdc2; color:#183b3a; font-size:16px; min-height:46px; min-width:0; width:100%; }
+.form-input,.form-select,.form-textarea { background:#fcfdfb; border:1px solid #bccdc2; color:#183b3a; font-family:inherit; font-size:16px; min-height:46px; min-width:0; width:100%; }
 .form-input:focus,.form-select:focus,.form-textarea:focus { border-color:#176b5b; box-shadow:0 0 0 3px #176b5b20; }
 .section-help { color:var(--muted); font-size:14px; margin:0 0 18px; }
 .extra-notes { display:block; margin:12px 0 18px; }
@@ -28,6 +28,46 @@ body { background:#f1f4f0; color:var(--ink); }
 .export-status { background:#e7efe5; border-radius:8px; padding:14px; margin-bottom:15px; }
 button:disabled { opacity:.6; cursor:wait; transform:none; }
 :focus-visible { outline:3px solid #d8a64d; outline-offset:3px; }
+.paper-form { background:white; border:2px solid #344c42; border-radius:3px; overflow:hidden; margin:18px 0 32px; }
+.sheet-header { display:grid; grid-template-columns:3fr 2fr; scroll-margin-top:85px; }
+.sheet-project,.sheet-workday { padding:22px; }
+.sheet-workday { border-left:2px solid #344c42; }
+.sheet-header h2 { font-size:21px; line-height:1.35; margin-bottom:8px; }
+.sheet-subtitle { font-size:14px; font-weight:750; margin-bottom:22px; }
+.paper-form .form-group { margin-bottom:14px; min-width:0; }
+.paper-form .form-group:last-child { margin-bottom:0; }
+.paper-form .form-label { font-weight:700; color:#203a30; }
+.sheet-inline,.context-age { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.sheet-row { padding:18px 22px; border-top:1px solid #53695e; scroll-margin-top:85px; }
+.sheet-row h2 { font-size:18px; margin:0 0 12px; }
+.sheet-row textarea { display:block; }
+.paper-form .form-section { border:0; border-top:1px solid #53695e; border-radius:0; padding:18px 22px; margin:0; }
+.paper-form .section-title { font-size:18px; border:0; padding:0; margin-bottom:16px; }
+.paper-form #lithology > .form-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.stratigraphy-choices { border:0; padding:0; margin:0 0 18px; min-width:0; }
+.stratigraphy-choices legend,.field-hint { font-size:13px; color:#59706b; margin-bottom:6px; }
+.stratigraphy-choices .checkbox-grid { margin-top:2px; gap:8px; }
+.stratigraphy-option { display:flex; gap:8px; align-items:center; padding:7px 9px; border:1px solid #d7e1da; border-radius:5px; font-size:14px; cursor:pointer; }
+.stratigraphy-option:has(input:checked) { background:#e5f0de; border-color:#7a9e70; }
+.stratigraphy-option input { width:17px; height:17px; accent-color:#176b5b; }
+.findings-identifiers { display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:16px; }
+.context-age { grid-template-columns:2fr 1fr; }
+.coordinate-fields { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+.supplement-heading { margin:30px 0 18px; }
+.supplement-heading h2 { font-size:23px; }
+.supplement-heading p { color:#59706b; font-size:14px; }
+.supplemental-details > summary { font-size:18px; font-weight:700; cursor:pointer; }
+.supplemental-details[open] > summary { margin-bottom:16px; }
+.supplemental-details > button { margin-bottom:16px; }
+@media(max-width:760px) {
+  .sheet-header { grid-template-columns:1fr; }
+  .sheet-workday { border-left:0; border-top:1px solid #53695e; }
+  .sheet-project,.sheet-workday,.sheet-row,.paper-form .form-section { padding:16px; }
+  .findings-identifiers,.context-age { grid-template-columns:1fr; gap:0; }
+  .coordinate-fields,.paper-form #lithology > .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .sheet-header h2 { font-size:19px; }
+  .stratigraphy-choices .checkbox-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 @media(max-width:600px) {
   .container { padding:12px 12px 35px; }
   .header { padding:24px 20px; }
